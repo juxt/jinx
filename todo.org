@@ -1,0 +1,44 @@
+* TODO Section 6
+** DONE 6.1
+*** DONE 6.1.1 type
+*** DONE 6.1.2 enum
+*** DONE 6.1.3 const
+** TODO 6.2
+*** TODO 6.2.1 multipleOf
+*** TODO 6.2.2 maximum
+*** TODO 6.2.3 exclusiveMaximum
+*** TODO 6.2.4 minimum
+*** TODO 6.2.5 exclusiveMinimum
+** TODO 6.3
+*** TODO 6.3.1 maxLength
+*** TODO 6.3.2 minLength
+*** TODO 6.3.3 pattern
+** TODO 6.4
+*** TODO 6.4.1 items
+*** TODO 6.4.2 additionalItems
+*** TODO 6.4.3 maxItems
+*** TODO 6.4.4 minItems
+*** TODO 6.4.5 uniqueItems
+*** TODO 6.4.6 contains
+** TODO 6.5
+*** TODO 6.5.1 maxProperties
+*** TODO 6.5.2 minProperties
+*** DONE 6.5.3 required
+*** DONE 6.5.4 properties
+*** TODO 6.5.5 patternProperties
+*** TODO 6.5.6 additionalProperties
+*** TODO 6.5.7 dependenices
+*** TODO 6.5.8 propertyNames
+** TODO 6.6
+*** TODO 6.6.1 if
+*** TODO 6.6.2 then
+*** TODO 6.6.3 else
+** TODO 6.7
+*** TODO 6.7.1 allOf
+*** TODO 6.7.2 anyOf
+*** TODO 6.7.3 oneOf
+*** TODO 6.7.4 not
+* TODO Section 7
+* TODO Section 8
+* TODO Section 9
+* TODO Section 10
