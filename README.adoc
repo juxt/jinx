@@ -1,0 +1,27 @@
+= jsonschema validator for Clojure(Script)
+
+Almost all Clojure implementations wrap Java libraries. This is
+generally a good idea.
+
+However, there are some reasons why a _native_ Clojure implementation is useful.
+
+* Java libraries compile jsonschema to object graphs, making them
+  inaccessible to many of the data functions in the Clojure core
+  library.
+
+* On the front-end, it can be painful to have to convert Clojure data
+  to JavaScript objects simply for the purposes of calling a
+  jsonschema validation such as
+  https://github.com/epoberezkin/ajv[Ajv].
+
+* Extensibility: jsonschema is designed to be extended with additional
+  vocabularies. Clojure has some nice open-for-extension mechanisms.
+
+== Status
+
+In development, nothing to see here.
+
+== Testing
+
+This library is tested with the official
+https://github.com/json-schema-org/JSON-Schema-Test-Suite[JSON-Schema-Test-Suite].
