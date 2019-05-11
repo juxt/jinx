@@ -1,6 +1,6 @@
 ;; Copyright © 2019, JUXT LTD.
 
-(ns juxt.jsonschema.test
+(ns juxt.jsonschema.official-test-suite
   (:require
    [cheshire.core :as json]
    [clojure.java.io :as io]
@@ -42,7 +42,7 @@
       :valid valid})))
 
 (def TESTS-DIR (-> (System/getenv "JUXT_REPOS")
-                  (io/file "JSON-Schema-Test-Suite/tests/draft7")))
+                   (io/file "JSON-Schema-Test-Suite/tests/draft7")))
 
 ;; TODO: Eventually use file-seq to scan for all tests, not just at
 ;; the top-level.

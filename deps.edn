@@ -1,2 +1,3 @@
-{:deps
- {cheshire {:mvn/version "5.8.0"}}}
+{:paths ["src" "test"]
+ :deps
+ {cheshire {:mvn/version "5.8.1"}}}
