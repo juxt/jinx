@@ -1,12 +1,17 @@
 (ns juxt.jsonschema.test
   (:require
-   [clojure.string :as str]
    [cheshire.core :as json]
-   [clojure.test :refer [deftest is are]]
-   [clojure.java.io :as io]))
+   [clojure.java.io :as io]
+   [juxt.jsonschema.validate :refer [validate]]))
 
-(def TESTS-DIR (-> (System/getenv "JUXT_REPOS")
-                  (io/file "JSON-Schema-Test-Suite/tests/draft7")))
+(defn failures [{:keys [schema data valid] :as all}]
+  (let [result (validate schema data)
+        success? (if valid (empty? result)
+                     (not (empty? result)))]
+    (when-not success?
+      all)))
+
+;; --- Test suite
 
 (defn tests
   ([tests-dir]
@@ -30,69 +35,13 @@
       :data data
       :valid valid})))
 
-
 (comment (count (tests TESTS-DIR #{"type.json"})))
 
-;; TODO: These must check against JavaScript primitive types,
-;; not Clojure/Java ones
-(def type-preds
-  {"null" nil?
-   "boolean" boolean?
-   "object" map?
-   "array" sequential?
-   "number" number?
-   "string" string?
-   "integer" integer?})
 
-(defn check-string-type [type data]
-  (when (string? type)
-    (when (not ((type-preds type) data))
-      [{:message (format "Value must be of type %s" type)}])))
+(def TESTS-DIR (-> (System/getenv "JUXT_REPOS")
+                  (io/file "JSON-Schema-Test-Suite/tests/draft7")))
 
-;; NOTE: loop/recur may be a better design to be able to stop
-;; (optionally) on the first errors.
-
-(declare validate)
-
-(defn check-array-type [type data]
-  (when (vector? type)
-    (when-not ((apply some-fn (vals (select-keys type-preds type))) data)
-      [{:message (format "Value must be of type %s" (str/join " or " type))}])))
-
-(defn check-enum [enum data]
-  (when enum
-    (when-not (contains? (set enum) data)
-      [{:message (format "Value %s must be in enum %s" data enum)}])))
-
-(defn check-object [schema data]
-  (when (= (get schema "type") "object")
-    (concat
-     (when (not (map? data)) [{:message "Must be an object"}])
-     (when-let [properties (get schema "properties")]
-       (apply concat
-              (for [[k v] properties
-                    :let [data (get data k)]
-                    :when data]
-                (validate {:path ["properties" k]} v data)))))))
-
-(defn validate
-  ([schema data]
-   (validate {} schema data))
-  ([jsonpointer {:strs [type enum properties] :as schema} data]
-   ;; We keep trying to find errors, returning them in a list
-   (->>
-    (concat
-     (check-string-type type data)
-     (check-array-type type data)
-     (check-enum enum data)
-     (check-object schema data))
-    (map #(merge {:data data :schema schema} %)))))
-
-(defn failures [{:keys [schema data valid] :as all}]
-  (let [result (validate schema data)
-        success? (if valid (empty? result)
-                     (not (empty? result)))]
-    (when-not success?
-      all)))
-
-(keep failures (tests TESTS-DIR #{"type.json" "enum.json"}))
+(keep failures (tests TESTS-DIR #{"type.json"
+                                  "enum.json"
+                                  "const.json"
+                                  }))
