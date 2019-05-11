@@ -60,6 +60,12 @@
   (when-not (= const data)
     [{:message (format "Value %s must be equal to const %s" data const)}]))
 
+(defmethod check-assertion "maxLength" [_ max-length schema data]
+  (when (string? data)
+    ;; See https://github.com/networknt/json-schema-validator/issues/4
+    (when (> (.codePointCount data 0 (.length data)) max-length)
+      [{:message "String is too long"}])))
+
 (defmethod check-assertion "properties" [_ properties schema data]
   (when (map? data)
     (if (not (map? data))

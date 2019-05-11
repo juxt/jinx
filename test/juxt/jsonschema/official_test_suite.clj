@@ -53,7 +53,7 @@
        "enum.json"
        "const.json"
        "required.json"
-       "contains.json"
+       "maxLength.json"
        }
      (tests TESTS-DIR)
      (map test-jsonschema)
