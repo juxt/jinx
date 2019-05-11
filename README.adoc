@@ -1,9 +1,10 @@
 = jsonschema validator for Clojure(Script)
 
-Almost all Clojure implementations wrap Java libraries. This is
-generally a good idea.
+Almost all Clojure implementations of https://json-schema.org/[json
+schema validators] wrap Java libraries. This is generally a good idea.
 
-However, there are some reasons why a _native_ Clojure implementation is useful.
+However, there are some reasons why a _native_ Clojure implementation
+can be useful:
 
 * Java libraries compile jsonschema to object graphs, making them
   inaccessible to many of the data functions in the Clojure core
