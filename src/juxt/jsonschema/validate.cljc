@@ -71,6 +71,11 @@
     (when (< (.codePointCount data 0 (.length data)) min-length)
       [{:message "String is too short"}])))
 
+(defmethod check-assertion "pattern" [_ pattern schema data]
+  (when (string? data)
+    (when-not (re-seq (re-pattern pattern) data)
+      [{:message (format "String does not match pattern %s" pattern)}])))
+
 (defmethod check-assertion "properties" [_ properties schema data]
   (when (map? data)
     (if (not (map? data))
