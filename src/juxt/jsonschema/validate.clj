@@ -1,3 +1,5 @@
+;; Copyright © 2019, JUXT LTD.
+
 (ns juxt.jsonschema.validate
   (:require
    [clojure.set :as set]
@@ -5,6 +7,30 @@
    [clojure.test :refer [deftest is are]]))
 
 (declare validate)
+
+;; All references here relate to
+;; draft-handrews-json-schema-validation-01.txt unless otherwise
+;; stated.
+
+(defmulti check-assertion
+  "Allow for additional vocabularies by making this extensible.
+
+  'Validation keywords typically operate independently, without
+   affecting each other's outcomes.' -- 3.1.1
+
+  However, given there are some exceptions, the full schema object is
+  also provided as a map.
+  "
+  (fn [keyword value schema data] keyword))
+
+(defmethod check-assertion :default [keyword type schema data]
+  ;; This is related to:
+  ;;
+  ;; "Assertion keywords that are absent never restrict validation."
+  ;; -- 3.2
+  ;;
+  ;; Do not error if a keyword isn't supported.
+  nil)
 
 ;; TODO: These must check against JavaScript primitive types,
 ;; not Clojure/Java ones
@@ -17,54 +43,60 @@
    "string" string?
    "integer" integer?})
 
-(defn check-type [schema data]
-  (when-let [type (get schema "type")]
-    (cond
-      (string? type)
-      (when (not ((type-preds type) data))
-        [{:message (format "Value must be of type %s" type)}])
-      (vector? type)
-      (when-not ((apply some-fn (vals (select-keys type-preds type))) data)
-        [{:message (format "Value must be of type %s" (str/join " or " type))}]))))
+(defmethod check-assertion "type" [_ type schema data]
+  (cond
+    (string? type)
+    (when (not ((type-preds type) data))
+      [{:message (format "Value must be of type %s" type)}])
+    (sequential? type)
+    (when-not ((apply some-fn (vals (select-keys type-preds type))) data)
+      [{:message (format "Value must be of type %s" (str/join " or " type))}])))
 
-;; NOTE: loop/recur may be a better design to be able to stop
-;; (optionally) on the first errors.
+(defmethod check-assertion "enum" [_ enum schema data]
+  (when-not (contains? (set enum) data)
+    [{:message (format "Value %s must be in enum %s" data enum)}]))
 
-(defn check-enum [schema data]
-  (when-let [enum (get schema "enum")]
-    (when-not (contains? (set enum) data)
-      [{:message (format "Value %s must be in enum %s" data enum)}])))
+(defmethod check-assertion "const" [_ const schema data]
+  (when-not (= const data)
+    [{:message (format "Value %s must be equal to const %s" data const)}]))
 
-(defn check-const [schema data]
-  (when-let [const (get schema "const")]
-    (when-not (= const data)
-      [{:message (format "Value %s must be equal to const %s" data const)}])))
+(defmethod check-assertion "properties" [_ properties schema data]
+  (when (map? data)
+    (if (not (map? data))
+      [{:message "Must be an object"}]
+      (apply concat
+             (for [[k v] properties
+                   :let [data (get data k)]
+                   :when data]
+               (validate {:path ["properties" k]} v data))))))
 
-(defn check-object [schema data]
-  (when (= (get schema "type") "object")
-    (let [properties (get schema "properties")]
-      (if (not (map? data))
-        [{:message "Must be an object"}]
-        (concat
-         (when-let [required (get schema "required")]
-           (when-not (set/subset? (set required) (set (keys data)))
-             [{:message "Missing required property"}]))
-         (when properties
-           (apply concat
-                  (for [[k v] properties
-                        :let [data (get data k)]
-                        :when data]
-                    (validate {:path ["properties" k]} v data)))))))))
+(defmethod check-assertion "required" [_ required schema data]
+  (when (map? data)
+    (when-not (set/subset? (set required) (set (keys data)))
+      [{:message "Missing required property"}])))
 
 (defn validate
   ([schema data]
    (validate {} schema data))
   ([jsonpointer schema data]
-   ;; We keep trying to find errors, returning them in a list
-   (->>
-    (concat
-     (check-type schema data)
-     (check-enum schema data)
-     (check-const schema data)
-     (check-object schema data))
-    (map #(merge {:data data :schema schema} %)))))
+   ;; We keep trying to find errors, returning them in a list.
+
+   ;; Start with an ordered list of known of validation keywords,
+   ;; before moving onto the validation keywords that have not yet
+   ;; been processed. This allows for the errors to be fairly
+   ;; determinstic and in the order expected, while allowing for
+   ;; extension.
+   (loop [keywords ["type" "enum" "const" "properties" "required"]
+          schema schema
+          data data
+          errors []]
+     (if-let [k (or (first keywords) (first (keys schema)))]
+       (recur
+        (next keywords)
+        (dissoc schema k)
+        data
+        (cond-> errors
+          (contains? schema k)
+          (concat (check-assertion k (get schema k) schema data))))
+       ;; Finally, return the errors (even if empty).
+       errors))))

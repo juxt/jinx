@@ -1,17 +1,23 @@
+;; Copyright © 2019, JUXT LTD.
+
 (ns juxt.jsonschema.test
   (:require
    [cheshire.core :as json]
    [clojure.java.io :as io]
    [juxt.jsonschema.validate :refer [validate]]))
 
-(defn failures [{:keys [schema data valid] :as all}]
-  (let [result (validate schema data)
-        success? (if valid (empty? result)
-                     (not (empty? result)))]
-    (when-not success?
-      all)))
+(defn test-jsonschema [{:keys [schema data valid] :as test}]
+  (try
+    (let [result (validate schema data)
+          success? (if valid (empty? result)
+                       (not (empty? result)))]
+      (assoc test :result (if success? :success :failure)))
+    (catch Exception e (merge test {:result :error
+                                    :error e}))))
 
-;; --- Test suite
+(defn success? [x] (= (:result x) :success))
+
+;; Test suite
 
 (defn tests
   ([tests-dir]
@@ -35,13 +41,20 @@
       :data data
       :valid valid})))
 
-(comment (count (tests TESTS-DIR #{"type.json"})))
-
-
 (def TESTS-DIR (-> (System/getenv "JUXT_REPOS")
                   (io/file "JSON-Schema-Test-Suite/tests/draft7")))
 
-(keep failures (tests TESTS-DIR #{"type.json"
-                                  "enum.json"
-                                  "const.json"
-                                  }))
+;; TODO: Eventually use file-seq to scan for all tests, not just at
+;; the top-level.
+(file-seq TESTS-DIR)
+
+;; Test runner
+(->> #{"type.json"
+       "enum.json"
+       "const.json"
+       "required.json"
+       "contains.json"
+       }
+     (tests TESTS-DIR)
+     (map test-jsonschema)
+     (remove success?))
