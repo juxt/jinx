@@ -66,6 +66,11 @@
     (when (> (.codePointCount data 0 (.length data)) max-length)
       [{:message "String is too long"}])))
 
+(defmethod check-assertion "minLength" [_ min-length schema data]
+  (when (string? data)
+    (when (< (.codePointCount data 0 (.length data)) min-length)
+      [{:message "String is too short"}])))
+
 (defmethod check-assertion "properties" [_ properties schema data]
   (when (map? data)
     (if (not (map? data))

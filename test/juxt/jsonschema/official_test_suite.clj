@@ -54,6 +54,7 @@
        "const.json"
        "required.json"
        "maxLength.json"
+       "minLength.json"
        }
      (tests TESTS-DIR)
      (map test-jsonschema)

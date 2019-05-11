@@ -11,7 +11,7 @@
 *** TODO 6.2.5 exclusiveMinimum
 ** TODO [#B] 6.3 Validation Keywords for Strings
 *** DONE 6.3.1 maxLength
-*** TODO 6.3.2 minLength
+*** DONE 6.3.2 minLength
 *** TODO 6.3.3 pattern
 ** TODO [#A] 6.4 Validation Keywords for Arrays
 *** TODO 6.4.1 items
