@@ -46,7 +46,7 @@
 (defmethod check-assertion "type" [_ type schema data]
   (cond
     (string? type)
-    (when (not ((type-preds type) data))
+    (when-not ((type-preds type) data)
       [{:message (format "Value must be of type %s" type)}])
     (sequential? type)
     (when-not ((apply some-fn (vals (select-keys type-preds type))) data)
