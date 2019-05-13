@@ -26,3 +26,8 @@ In development, nothing to see here.
 
 This library is tested with the official
 https://github.com/json-schema-org/JSON-Schema-Test-Suite[JSON-Schema-Test-Suite].
+
+
+== Alternative implementations
+
+* https://github.com/niquola/json-schema.clj
