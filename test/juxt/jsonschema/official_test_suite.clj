@@ -65,6 +65,7 @@
        "uniqueItems.json"
        "multipleOf.json"
        "maximum.json"
+       "exclusiveMaximum.json"
 ;;       "contains.json"
        }
      (tests TESTS-DIR)

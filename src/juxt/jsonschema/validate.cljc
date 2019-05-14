@@ -77,6 +77,11 @@
     (when-not (<= instance maximum)
       [{:message "Failed maximum check"}])))
 
+(defmethod check-assertion "exclusiveMaximum" [_ ctx exclusive-maximum schema instance]
+  (when (number? instance)
+    (when-not (< instance exclusive-maximum)
+      [{:message "Failed exclusiveMaximum check"}])))
+
 (defmethod check-assertion "maxLength" [_ ctx max-length schema instance]
   (when (string? instance)
     ;; See https://github.com/networknt/json-schema-validator/issues/4

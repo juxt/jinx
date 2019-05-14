@@ -9,7 +9,7 @@ file:/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/
 ** TODO [#C] 6.2 Validation Keywords for Numeric Instances (number and integer)
 *** DONE 6.2.1 multipleOf
 *** DONE 6.2.2 maximum
-*** TODO 6.2.3 exclusiveMaximum
+*** DONE 6.2.3 exclusiveMaximum
 *** TODO 6.2.4 minimum
 *** TODO 6.2.5 exclusiveMinimum
 ** DONE [#B] 6.3 Validation Keywords for Strings
@@ -22,7 +22,7 @@ file:/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/
 *** DONE 6.4.3 maxItems
 *** DONE 6.4.4 minItems
 *** DONE 6.4.5 uniqueItems
-*** DONE 6.4.6 contains
+*** TODO 6.4.6 contains
 ** TODO [#A] 6.5 Validation Keywords for Objects
 *** TODO 6.5.1 maxProperties
 *** TODO 6.5.2 minProperties
