@@ -14,7 +14,7 @@
 *** DONE 6.3.2 minLength
 *** DONE 6.3.3 pattern
 ** TODO [#A] 6.4 Validation Keywords for Arrays
-*** TODO 6.4.1 items
+*** DONE 6.4.1 items
 *** TODO 6.4.2 additionalItems
 *** TODO 6.4.3 maxItems
 *** TODO 6.4.4 minItems

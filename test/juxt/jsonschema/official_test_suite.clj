@@ -11,7 +11,10 @@
     (let [result (validate schema data)
           success? (if valid (empty? result)
                        (not (empty? result)))]
-      (assoc test :result (if success? :success :failure)))
+      (cond-> test
+        success? (assoc :result :success)
+        (and (not success?) valid) (assoc :failures result)
+        (and (empty? result) (not valid)) (assoc :failures [{:message "Incorrectly judged valid"}])))
     (catch Exception e (merge test {:result :error
                                     :error e}))))
 
@@ -56,6 +59,7 @@
        "maxLength.json"
        "minLength.json"
        "pattern.json"
+       "items.json"
        }
      (tests TESTS-DIR)
      (map test-jsonschema)

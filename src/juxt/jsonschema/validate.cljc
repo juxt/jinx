@@ -4,7 +4,9 @@
   (:require
    [clojure.set :as set]
    [clojure.string :as str]
-   [clojure.test :refer [deftest is are]]))
+   [clojure.test :refer [deftest is are]]
+   [juxt.jsonschema.jsonpointer :as jsonpointer]
+   [lambdaisland.uri :as uri]))
 
 (declare validate)
 
@@ -21,15 +23,14 @@
   However, given there are some exceptions, the full schema object is
   also provided as a map.
   "
-  (fn [keyword value schema data] keyword))
+  (fn [keyword ctx value schema instance] keyword))
 
-(defmethod check-assertion :default [keyword type schema data]
-  ;; This is related to:
+(defmethod check-assertion :default [_ _ _ _ _]
+  ;; A JSON Schema MAY contain properties which are not schema
+  ;; keywords. Unknown keywords SHOULD be ignored. -- JSON Schema Core, 4.3.1
   ;;
-  ;; "Assertion keywords that are absent never restrict validation."
-  ;; -- 3.2
-  ;;
-  ;; Do not error if a keyword isn't supported.
+  ;; Do not error if a method for a given keyword isn't defined, so we
+  ;; return nil.
   nil)
 
 ;; TODO: These must check against JavaScript primitive types,
@@ -43,76 +44,163 @@
    "string" string?
    "integer" integer?})
 
-(defmethod check-assertion "type" [_ type schema data]
+(defmethod check-assertion "type" [_ ctx type schema instance]
   (cond
     (string? type)
-    (when-not ((type-preds type) data)
+    (when-not ((type-preds type) instance)
       [{:message (format "Value must be of type %s" type)}])
     (sequential? type)
-    (when-not ((apply some-fn (vals (select-keys type-preds type))) data)
+    (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
       [{:message (format "Value must be of type %s" (str/join " or " type))}])))
 
-(defmethod check-assertion "enum" [_ enum schema data]
-  (when-not (contains? (set enum) data)
-    [{:message (format "Value %s must be in enum %s" data enum)}]))
+(defmethod check-assertion "enum" [_ ctx enum schema instance]
+  (when-not (contains? (set enum) instance)
+    [{:message (format "Value %s must be in enum %s" instance enum)}]))
 
-(defmethod check-assertion "const" [_ const schema data]
-  (when-not (= const data)
-    [{:message (format "Value %s must be equal to const %s" data const)}]))
+(defmethod check-assertion "const" [_ ctx const schema instance]
+  (when-not (= const instance)
+    [{:message (format "Value %s must be equal to const %s" instance const)}]))
 
-(defmethod check-assertion "maxLength" [_ max-length schema data]
-  (when (string? data)
+(defmethod check-assertion "maxLength" [_ ctx max-length schema instance]
+  (when (string? instance)
     ;; See https://github.com/networknt/json-schema-validator/issues/4
-    (when (> (.codePointCount data 0 (.length data)) max-length)
+    (when (> (.codePointCount instance 0 (.length instance)) max-length)
       [{:message "String is too long"}])))
 
-(defmethod check-assertion "minLength" [_ min-length schema data]
-  (when (string? data)
-    (when (< (.codePointCount data 0 (.length data)) min-length)
+(defmethod check-assertion "minLength" [_ ctx min-length schema instance]
+  (when (string? instance)
+    (when (<
+           #?(:clj (.codePointCount instance 0 (.length instance))
+              :cljs (count instance))
+           min-length)
       [{:message "String is too short"}])))
 
-(defmethod check-assertion "pattern" [_ pattern schema data]
-  (when (string? data)
-    (when-not (re-seq (re-pattern pattern) data)
+(defmethod check-assertion "pattern" [_ ctx pattern schema instance]
+  (when (string? instance)
+    (when-not (re-seq (re-pattern pattern) instance)
       [{:message (format "String does not match pattern %s" pattern)}])))
 
-(defmethod check-assertion "properties" [_ properties schema data]
-  (when (map? data)
-    (if (not (map? data))
+;; TODO: Rename schema to subschema
+;; TODO: Push ctx through
+;; TODO: Replace 'apply concat' with 'mapcat seq'
+;; TODO: Show paths in error messages
+
+(defmethod check-assertion "items" [_ ctx items schema instance]
+  (when (sequential? instance)
+    (cond
+      (map? items)
+      (apply concat
+             (for [[idx instance] (map-indexed vector instance)]
+               (validate (update ctx :path (fnil conj []) idx) items instance)))
+
+      (sequential? items)
+      ;; TODO: Consider short circuiting
+      (apply concat
+             (for [[idx schema instance] (map vector (range) (concat items (repeat (get schema "additionalItems"))) instance)]
+               (validate (update ctx :path (fnil conj []) idx) schema instance)))
+
+      (boolean? items)
+      (when (and (false? items) (not-empty instance))
+        [{:message "Items must be empty to satisfy a false schema"}]))))
+
+(defmethod check-assertion "properties" [_ ctx properties schema instance]
+  (when (map? instance)
+    (if (not (map? instance))
       [{:message "Must be an object"}]
       (apply concat
              (for [[k v] properties
-                   :let [data (get data k)]
-                   :when data]
-               (validate {:path ["properties" k]} v data))))))
+                   :let [instance (get instance k)]
+                   :when instance]
+               (validate (update ctx :path (fnil conj []) "properties" k) v instance))))))
 
-(defmethod check-assertion "required" [_ required schema data]
-  (when (map? data)
-    (when-not (set/subset? (set required) (set (keys data)))
+(defmethod check-assertion "required" [_ ctx required schema instance]
+  (when (map? instance)
+    (when-not (set/subset? (set required) (set (keys instance)))
       [{:message "Missing required property"}])))
 
-(defn validate
-  ([schema data]
-   (validate {} schema data))
-  ([jsonpointer schema data]
-   ;; We keep trying to find errors, returning them in a list.
+(defn resolve-ref [ctx ref]
+  (let [[uri fragment] (str/split ref #"#")]
+    (if (empty? uri)
+      [ctx (jsonpointer/json-pointer (:doc ctx) fragment)]
 
-   ;; Start with an ordered list of known of validation keywords,
-   ;; before moving onto the validation keywords that have not yet
-   ;; been processed. This allows for the errors to be fairly
-   ;; determinstic and in the order expected, while allowing for
-   ;; extension.
-   (loop [keywords ["type" "enum" "const" "properties" "required"]
-          schema schema
-          data data
-          errors []]
-     (if-let [k (or (first keywords) (first (keys schema)))]
-       (recur
-        (next keywords)
-        (dissoc schema k)
-        data
-        (cond-> errors
-          (contains? schema k)
-          (concat (check-assertion k (get schema k) schema data))))
-       ;; Finally, return the errors (even if empty).
-       errors))))
+      (let [uri (uri/join (:base-uri ctx) uri)]
+        ;; TODO: Resolve uri, then load schema doc, assoc ctx :doc
+        (throw (ex-info "TODO: Resolve"
+                        {:uri uri
+                         :fragment fragment}))))))
+
+(defn validate
+  ([schema instance]
+   (validate {:doc schema} schema instance))
+
+  ([ctx schema instance]
+   ;; We keep trying to find errors, returning them in a list.
+   (cond
+     (and (map? schema) (contains? schema "$id"))
+     (validate
+      (update ctx :base-uri uri/join (get schema "$id"))
+      (dissoc schema "$id")             ; avoid stack-overflow!
+      instance)
+
+     (and (map? schema) (contains? schema "$ref"))
+     (let [[new-ctx new-schema] (resolve-ref ctx (get schema "$ref"))]
+       (validate new-ctx new-schema instance))
+
+     (boolean? schema)
+     (if schema [] [{:message "Schema is boolean false"}])
+
+     :else
+     ;; Start with an ordered list of known of validation keywords,
+     ;; before moving onto the validation keywords that have not yet
+     ;; been processed. This allows for the errors to be fairly
+     ;; determinstic and in the order expected, while allowing for
+     ;; extension.
+     (loop [keywords ["type" "enum" "const" "properties" "required"]
+            schema schema
+            other-keywords (set (keys schema))
+            instance instance
+            errors []]
+       ;; TODO: What if schema is a boolean schema?
+       (if-let [k (or (first keywords) (first other-keywords))]
+         (recur
+          (next keywords)
+          schema
+          (disj other-keywords k)
+          instance
+          (cond-> errors
+            (contains? schema k)
+            (concat (check-assertion k ctx (get schema k) schema instance))))
+         ;; Finally, return the errors (even if empty).
+         errors)))))
+
+
+
+#_(let [test
+      {:filename "items.json",
+       :test-group-description "items and subitems",
+       :test-description "too many sub-items",
+       :schema
+       {"definitions"
+        {"item"
+         {"type" "array",
+          "additionalItems" false,
+          "items"
+          [{"$ref" "#/definitions/sub-item"}
+           {"$ref" "#/definitions/sub-item"}]},
+         "sub-item" {"type" "object", "required" ["foo"]}},
+        "type" "array",
+        "additionalItems" false,
+        "items"
+        [{"$ref" "#/definitions/item"}
+         {"$ref" "#/definitions/item"}
+         {"$ref" "#/definitions/item"}]},
+       :data
+       [[{"foo" nil} {"foo" nil} {"foo" nil}]
+        [{"foo" nil} {"foo" nil}]
+        [{"foo" nil} {"foo" nil}]],
+       :valid false,
+       :failures [{:message "Incorrectly judged valid"}]}]
+
+  (validate
+   (:schema test)
+   (:data test)))
