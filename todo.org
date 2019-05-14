@@ -8,7 +8,7 @@ file:/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/
 *** DONE 6.1.3 const
 ** TODO [#C] 6.2 Validation Keywords for Numeric Instances (number and integer)
 *** DONE 6.2.1 multipleOf
-*** TODO 6.2.2 maximum
+*** DONE 6.2.2 maximum
 *** TODO 6.2.3 exclusiveMaximum
 *** TODO 6.2.4 minimum
 *** TODO 6.2.5 exclusiveMinimum

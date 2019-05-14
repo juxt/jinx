@@ -72,6 +72,11 @@
     (when-not (= 0 (.compareTo (.remainder (bigdec instance) (bigdec multiple-of)) BigDecimal/ZERO))
       [{:message "Failed multipleOf check"}])))
 
+(defmethod check-assertion "maximum" [_ ctx maximum schema instance]
+  (when (number? instance)
+    (when-not (<= instance maximum)
+      [{:message "Failed maximum check"}])))
+
 (defmethod check-assertion "maxLength" [_ ctx max-length schema instance]
   (when (string? instance)
     ;; See https://github.com/networknt/json-schema-validator/issues/4
