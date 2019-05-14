@@ -113,6 +113,11 @@
     (when (< (count instance) min-items)
       [{:message "minItems not reached"}])))
 
+(defmethod check-assertion "uniqueItems" [_ ctx unique-items? schema instance]
+  (when (and (sequential? instance) unique-items?)
+    (when-not (apply distinct? instance)
+      [{:message "Instance elements are not all unique"}])))
+
 (defmethod check-assertion "properties" [_ ctx properties schema instance]
   (when (map? instance)
     (if (not (map? instance))
@@ -186,28 +191,11 @@
 
 
 #_(let [test
-      {:filename "items.json",
-       :test-group-description "items and subitems",
-       :test-description "too many sub-items",
-       :schema
-       {"definitions"
-        {"item"
-         {"type" "array",
-          "additionalItems" false,
-          "items"
-          [{"$ref" "#/definitions/sub-item"}
-           {"$ref" "#/definitions/sub-item"}]},
-         "sub-item" {"type" "object", "required" ["foo"]}},
-        "type" "array",
-        "additionalItems" false,
-        "items"
-        [{"$ref" "#/definitions/item"}
-         {"$ref" "#/definitions/item"}
-         {"$ref" "#/definitions/item"}]},
-       :data
-       [[{"foo" nil} {"foo" nil} {"foo" nil}]
-        [{"foo" nil} {"foo" nil}]
-        [{"foo" nil} {"foo" nil}]],
+      {:filename "uniqueItems.json",
+       :test-group-description "uniqueItems validation",
+       :test-description "non-unique array of integers is invalid",
+       :schema {"uniqueItems" true},
+       :data [1 1],
        :valid false,
        :failures [{:message "Incorrectly judged valid"}]}]
 

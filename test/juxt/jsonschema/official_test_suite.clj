@@ -62,6 +62,7 @@
        "items.json"
        "maxItems.json"
        "minItems.json"
+       "uniqueItems.json"
        }
      (tests TESTS-DIR)
      (map test-jsonschema)
