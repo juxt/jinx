@@ -66,7 +66,9 @@
        "multipleOf.json"
        "maximum.json"
        "exclusiveMaximum.json"
-;;       "contains.json"
+       "minimum.json"
+       "exclusiveMinimum.json"
+       "contains.json"
        }
      (tests TESTS-DIR)
      (map test-jsonschema)
