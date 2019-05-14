@@ -63,6 +63,8 @@
        "maxItems.json"
        "minItems.json"
        "uniqueItems.json"
+       "multipleOf.json"
+;;       "contains.json"
        }
      (tests TESTS-DIR)
      (map test-jsonschema)

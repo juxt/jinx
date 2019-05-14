@@ -1,6 +1,7 @@
 ;; Copyright © 2019, JUXT LTD.
 
 (ns juxt.jsonschema.validate
+  (:refer-clojure :exclude [number?])
   (:require
    [clojure.set :as set]
    [clojure.string :as str]
@@ -23,6 +24,7 @@
   However, given there are some exceptions, the full schema object is
   also provided as a map.
   "
+  ;; TODO: Document reason for 'schema' (to pull out additionalProperties, etc.)
   (fn [keyword ctx value schema instance] keyword))
 
 (defmethod check-assertion :default [_ _ _ _ _]
@@ -35,6 +37,10 @@
 
 ;; TODO: These must check against JavaScript primitive types,
 ;; not Clojure/Java ones
+
+(defn number? [x]
+  (clojure.core/number? x))
+
 (def type-preds
   {"null" nil?
    "boolean" boolean?
@@ -61,6 +67,11 @@
   (when-not (= const instance)
     [{:message (format "Value %s must be equal to const %s" instance const)}]))
 
+(defmethod check-assertion "multipleOf" [_ ctx multiple-of schema instance]
+  (when (number? instance)
+    (when-not (= 0 (.compareTo (.remainder (bigdec instance) (bigdec multiple-of)) BigDecimal/ZERO))
+      [{:message "Failed multipleOf check"}])))
+
 (defmethod check-assertion "maxLength" [_ ctx max-length schema instance]
   (when (string? instance)
     ;; See https://github.com/networknt/json-schema-validator/issues/4
@@ -84,6 +95,7 @@
 ;; TODO: Push ctx through
 ;; TODO: Replace 'apply concat' with 'mapcat seq'
 ;; TODO: Show paths in error messages
+;; TODO: Improve error messages, possibly copying Ajv or org.everit json-schema
 
 (defmethod check-assertion "items" [_ ctx items schema instance]
   (when (sequential? instance)
@@ -94,7 +106,7 @@
                (validate (update ctx :path (fnil conj []) idx) items instance)))
 
       (sequential? items)
-      ;; TODO: Consider short circuiting
+      ;; TODO: Consider short-circuiting
       (apply concat
              (for [[idx schema instance] (map vector (range) (concat items (repeat (get schema "additionalItems"))) instance)]
                (validate (update ctx :path (fnil conj []) idx) schema instance)))
@@ -117,6 +129,11 @@
   (when (and (sequential? instance) unique-items?)
     (when-not (apply distinct? instance)
       [{:message "Instance elements are not all unique"}])))
+
+(defmethod check-assertion "contains" [_ ctx contains schema instance]
+  (when (sequential? instance)
+    (when-not (some #(empty? (validate ctx contains %)) instance)
+      [{:message "Instance is not valid against schema"}])))
 
 (defmethod check-assertion "properties" [_ ctx properties schema instance]
   (when (map? instance)
