@@ -60,6 +60,8 @@
        "minLength.json"
        "pattern.json"
        "items.json"
+       "maxItems.json"
+       "minItems.json"
        }
      (tests TESTS-DIR)
      (map test-jsonschema)

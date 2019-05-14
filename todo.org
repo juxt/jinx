@@ -1,3 +1,6 @@
+* Tests are here
+file:/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/
+
 * TODO 6. Validation Keywords
 ** DONE [#A] 6.1 Validation Keywords for Any Instance Type
 *** DONE 6.1.1 type
@@ -15,9 +18,9 @@
 *** DONE 6.3.3 pattern
 ** TODO [#A] 6.4 Validation Keywords for Arrays
 *** DONE 6.4.1 items
-*** TODO 6.4.2 additionalItems
-*** TODO 6.4.3 maxItems
-*** TODO 6.4.4 minItems
+*** DONE 6.4.2 additionalItems
+*** DONE 6.4.3 maxItems
+*** DONE 6.4.4 minItems
 *** TODO 6.4.5 uniqueItems
 *** TODO 6.4.6 contains
 ** TODO [#A] 6.5 Validation Keywords for Objects

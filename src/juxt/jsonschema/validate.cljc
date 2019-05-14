@@ -103,6 +103,16 @@
       (when (and (false? items) (not-empty instance))
         [{:message "Items must be empty to satisfy a false schema"}]))))
 
+(defmethod check-assertion "maxItems" [_ ctx max-items schema instance]
+  (when (sequential? instance)
+    (when (> (count instance) max-items)
+      [{:message "maxItems exceeded"}])))
+
+(defmethod check-assertion "minItems" [_ ctx min-items schema instance]
+  (when (sequential? instance)
+    (when (< (count instance) min-items)
+      [{:message "minItems not reached"}])))
+
 (defmethod check-assertion "properties" [_ ctx properties schema instance]
   (when (map? instance)
     (if (not (map? instance))
