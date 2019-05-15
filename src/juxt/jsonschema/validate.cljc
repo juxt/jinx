@@ -114,8 +114,6 @@
       [{:message (format "String does not match pattern %s" pattern)}])))
 
 ;; TODO: Rename schema to subschema
-;; TODO: Push ctx through
-;; TODO: Replace 'apply concat' with 'mapcat seq'
 ;; TODO: Show paths in error messages
 ;; TODO: Improve error messages, possibly copying Ajv or org.everit json-schema
 
@@ -123,15 +121,17 @@
   (when (sequential? instance)
     (cond
       (map? items)
-      (apply concat
-             (for [[idx instance] (map-indexed vector instance)]
-               (validate (update ctx :path (fnil conj []) idx) items instance)))
+      (mapcat
+       seq
+       (for [[idx instance] (map-indexed vector instance)]
+         (validate (update ctx :path (fnil conj []) idx) items instance)))
 
       (sequential? items)
       ;; TODO: Consider short-circuiting
-      (apply concat
-             (for [[idx schema instance] (map vector (range) (concat items (repeat (get schema "additionalItems"))) instance)]
-               (validate (update ctx :path (fnil conj []) idx) schema instance)))
+      (mapcat
+       seq
+       (for [[idx schema instance] (map vector (range) (concat items (repeat (get schema "additionalItems"))) instance)]
+         (validate (update ctx :path (fnil conj []) idx) schema instance)))
 
       (boolean? items)
       (when (and (false? items) (not-empty instance))
@@ -161,11 +161,12 @@
   (when (map? instance)
     (if (not (map? instance))
       [{:message "Must be an object"}]
-      (apply concat
-             (for [[k v] properties
-                   :let [instance (get instance k)]
-                   :when instance]
-               (validate (update ctx :path (fnil conj []) "properties" k) v instance))))))
+      (mapcat
+       seq
+       (for [[k v] properties
+             :let [instance (get instance k)]
+             :when instance]
+         (validate (update ctx :path (fnil conj []) "properties" k) v instance))))))
 
 (defmethod check-assertion "required" [_ ctx required schema instance]
   (when (map? instance)
