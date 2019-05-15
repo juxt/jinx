@@ -69,7 +69,9 @@
 
 (defmethod check-assertion "multipleOf" [_ ctx multiple-of schema instance]
   (when (number? instance)
-    (when-not (= 0 (.compareTo (.remainder (bigdec instance) (bigdec multiple-of)) BigDecimal/ZERO))
+    (when-not
+        #?(:clj (= 0 (.compareTo (.remainder (bigdec instance) (bigdec multiple-of)) BigDecimal/ZERO))
+           :cljs [{:message "Not yet supported"}])
       [{:message "Failed multipleOf check"}])))
 
 (defmethod check-assertion "maximum" [_ ctx maximum schema instance]
