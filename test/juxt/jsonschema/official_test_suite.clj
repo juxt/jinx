@@ -4,7 +4,8 @@
   (:require
    [cheshire.core :as json]
    [clojure.java.io :as io]
-   [juxt.jsonschema.validate :refer [validate]]))
+   [juxt.jsonschema.validate :refer [validate]]
+   [clojure.set :as set]))
 
 (defn test-jsonschema [{:keys [schema data valid] :as test}]
   (try
@@ -13,7 +14,7 @@
                        (not (empty? result)))]
       (cond-> test
         success? (assoc :result :success)
-        (and (not success?) valid) (assoc :failures result)
+        (and (not success?) valid) (assoc :failures (vec result))
         (and (empty? result) (not valid)) (assoc :failures [{:message "Incorrectly judged valid"}])))
     (catch Exception e (merge test {:result :error
                                     :error e}))))
@@ -51,8 +52,39 @@
 ;; the top-level.
 (file-seq TESTS-DIR)
 
+(set/difference
+ (set (seq (.list TESTS-DIR)))
+ #{"boolean_schema.json"
+   "type.json"
+   "enum.json"
+   "const.json"
+   "maxLength.json"
+   "minLength.json"
+   "pattern.json"
+   "items.json"
+   "maxItems.json"
+   "minItems.json"
+   "uniqueItems.json"
+   "multipleOf.json"
+   "maximum.json"
+   "exclusiveMaximum.json"
+   "minimum.json"
+   "exclusiveMinimum.json"
+   "contains.json"
+   "maxProperties.json"
+   "minProperties.json"
+   "required.json"
+   "properties.json"
+   "patternProperties.json"
+
+   "default.json"
+
+   }
+ )
+
 ;; Test runner
-(->> #{"type.json"
+(->> #{"boolean_schema.json"
+       "type.json"
        "enum.json"
        "const.json"
        "maxLength.json"
@@ -71,7 +103,14 @@
        "maxProperties.json"
        "minProperties.json"
        "required.json"
-       ;;"properties.json"
+       "properties.json"
+       "patternProperties.json"
+
+       "default.json"
+
+       ;;"definitions.json"
+       ;;"ref.json"
+       ;;"propertyNames.json"
 
        }
      (tests TESTS-DIR)

@@ -174,14 +174,38 @@
 
 (defmethod check-assertion "properties" [_ ctx properties schema instance]
   (when (map? instance)
+    (mapcat
+     seq
+     (for [[k subschema] properties
+           :let [child-instance (get instance k)]
+           :when child-instance]
+       (validate (update ctx :path (fnil conj []) "properties" k) subschema child-instance)))))
+
+(defmethod check-assertion "patternProperties" [_ ctx pattern-properties schema instance]
+  (when (map? instance)
     (if (not (map? instance))
       [{:message "Must be an object"}]
       (mapcat
        seq
-       (for [[k v] properties
-             :let [instance (get instance k)]
-             :when instance]
-         (validate (update ctx :path (fnil conj []) "properties" k) v instance))))))
+       (let [compiled-pattern-properties (map (fn [[k v]] [(re-pattern k) v]) pattern-properties)]
+         (for [[propname child-instance] instance
+               [pattern subschema] compiled-pattern-properties
+               :when (re-seq pattern propname)
+               ]
+           (validate (update ctx :path (fnil conj []) "patternProperties" (str pattern)) subschema child-instance)))))))
+
+(defmethod check-assertion "additionalProperties" [_ ctx additional-properties schema instance]
+  []
+  (when (map? instance)
+    (mapcat
+     seq
+     (let [properties (set (keys (get schema "properties")))
+           compiled-patterns (when-let [pattern-properties (get schema "patternProperties")]
+                               (map (fn [[k v]] (re-pattern k)) pattern-properties))]
+       (for [[propname child-instance] instance
+             :when (not (contains? properties propname))
+             :when (nil? (some #(re-seq % propname) compiled-patterns))]
+         (validate (update ctx :path (fnil conj []) "additionalProperties") additional-properties child-instance))))))
 
 (defn resolve-ref [ctx ref]
   (let [[uri fragment] (str/split ref #"#")]
@@ -239,16 +263,20 @@
          errors)))))
 
 
-
-#_(let [test
-      {:filename "uniqueItems.json",
-       :test-group-description "uniqueItems validation",
-       :test-description "non-unique array of integers is invalid",
-       :schema {"uniqueItems" true},
-       :data [1 1],
-       :valid false,
-       :failures [{:message "Incorrectly judged valid"}]}]
+(let [test
+      {:filename "properties.json",
+       :test-group-description
+       "properties, patternProperties, additionalProperties interaction",
+       :test-description "patternProperty validates nonproperty",
+       :schema
+       {"properties"
+        {"foo" {"type" "array", "maxItems" 3}, "bar" {"type" "array"}},
+        "patternProperties" {"f.o" {"minItems" 2}},
+        "additionalProperties" {"type" "integer"}},
+       :data {"fxo" [1 2]},
+       :valid true,
+       :failures [{:message "Value must be of type integer"}]}]
 
   (validate
-   (:schema test)
-   (:data test)))
+     (:schema test)
+     (:data test)))
