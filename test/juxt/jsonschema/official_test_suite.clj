@@ -55,7 +55,6 @@
 (->> #{"type.json"
        "enum.json"
        "const.json"
-       "required.json"
        "maxLength.json"
        "minLength.json"
        "pattern.json"
@@ -69,6 +68,11 @@
        "minimum.json"
        "exclusiveMinimum.json"
        "contains.json"
+       "maxProperties.json"
+       "minProperties.json"
+       "required.json"
+       ;;"properties.json"
+
        }
      (tests TESTS-DIR)
      (map test-jsonschema)

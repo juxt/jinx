@@ -24,8 +24,8 @@ file:/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/
 *** DONE 6.4.5 uniqueItems
 *** DONE 6.4.6 contains
 ** TODO [#A] 6.5 Validation Keywords for Objects
-*** TODO 6.5.1 maxProperties
-*** TODO 6.5.2 minProperties
+*** DONE 6.5.1 maxProperties
+*** DONE 6.5.2 minProperties
 *** DONE 6.5.3 required
 *** DONE 6.5.4 properties
 *** TODO 6.5.5 patternProperties

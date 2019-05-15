@@ -157,6 +157,21 @@
     (when-not (some #(empty? (validate ctx contains %)) instance)
       [{:message "Instance is not valid against schema"}])))
 
+(defmethod check-assertion "maxProperties" [_ ctx max-properties schema instance]
+  (when (map? instance)
+    (when-not (<= (count (keys instance)) max-properties)
+      [{:message "Max properties exceeded"}])))
+
+(defmethod check-assertion "minProperties" [_ ctx min-properties schema instance]
+  (when (map? instance)
+    (when-not (<= min-properties (count (keys instance)))
+      [{:message "Min properties not reached"}])))
+
+(defmethod check-assertion "required" [_ ctx required schema instance]
+  (when (map? instance)
+    (when-not (set/subset? (set required) (set (keys instance)))
+      [{:message "Missing required property"}])))
+
 (defmethod check-assertion "properties" [_ ctx properties schema instance]
   (when (map? instance)
     (if (not (map? instance))
@@ -167,11 +182,6 @@
              :let [instance (get instance k)]
              :when instance]
          (validate (update ctx :path (fnil conj []) "properties" k) v instance))))))
-
-(defmethod check-assertion "required" [_ ctx required schema instance]
-  (when (map? instance)
-    (when-not (set/subset? (set required) (set (keys instance)))
-      [{:message "Missing required property"}])))
 
 (defn resolve-ref [ctx ref]
   (let [[uri fragment] (str/split ref #"#")]
