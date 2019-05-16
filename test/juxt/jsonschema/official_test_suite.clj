@@ -77,12 +77,13 @@
     "dependencies.json"
     "propertyNames.json"
     "allOf.json"
-    "anyOf.json"})
+    "anyOf.json"
+    "oneOf.json"})
 
 (comment
   "Get a list of the tests yet to implement"
   (set/difference
-   (set (filter seq (map (comp str #(.relativize (.toPath TESTS-DIR) %) (memfn toPath)) (file-seq TESTS-DIR))))
+   (set (filter seq (map (comp str #(.relativize (.toPath TESTS-DIR) %) (memfn toPath)) (filter (memfn isFile) (file-seq TESTS-DIR)))))
    IMPLEMENTED))
 
 (comment

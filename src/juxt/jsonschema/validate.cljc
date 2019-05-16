@@ -251,9 +251,19 @@
   (when
       (every? seq
               (for [[subschema idx] (map vector any-of (range))]
-                (validate (update ctx :path (fnil conj []) "anyOf" idx) subschema instance)
-                ))
+                (validate (update ctx :path (fnil conj []) "anyOf" idx) subschema instance)))
     [{:message "No schema validates for anyOf validation"}]))
+
+(defmethod check-assertion "oneOf" [_ ctx one-of schema instance]
+  (let [valids
+        (for [[subschema idx] (map vector one-of (range))
+              :when (not (seq (validate (update ctx :path (fnil conj []) "oneOf" idx) subschema instance)))]
+          idx)]
+    (cond
+      (zero? (count valids))
+      [{:message "No schema validates in oneOf validation"}]
+      (not= 1 (count valids))
+      [{:message (format "Multiple schemas (%s) are valid in oneOf validation" (str/join ", " valids))}])))
 
 (defn resolve-ref [ctx ref]
   (let [[uri fragment] (str/split ref #"#")]
