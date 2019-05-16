@@ -23,7 +23,7 @@ file:/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/
 *** DONE 6.4.4 minItems
 *** DONE 6.4.5 uniqueItems
 *** DONE 6.4.6 contains
-** TODO [#A] 6.5 Validation Keywords for Objects
+** DONE [#A] 6.5 Validation Keywords for Objects
 *** DONE 6.5.1 maxProperties
 *** DONE 6.5.2 minProperties
 *** DONE 6.5.3 required
@@ -31,7 +31,7 @@ file:/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/
 *** DONE 6.5.5 patternProperties
 *** DONE 6.5.6 additionalProperties
 *** DONE 6.5.7 dependenices
-*** TODO 6.5.8 propertyNames
+*** DONE 6.5.8 propertyNames
 ** TODO [#C] 6.6 Keywords for Applying Subschemas Conditionally
 *** TODO 6.6.1 if
 *** TODO 6.6.2 then

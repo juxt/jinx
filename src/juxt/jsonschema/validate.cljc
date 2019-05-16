@@ -231,6 +231,13 @@
            (when-not (every? #(contains? instance %) dvalue)
              [{:message "Not every dependency in instance"}])))))))
 
+(defmethod check-assertion "propertyNames" [_ ctx property-names schema instance]
+  (when (object? instance)
+    (mapcat
+     seq
+     (for [propname (keys instance)]
+       (validate ctx property-names propname)))))
+
 (defn resolve-ref [ctx ref]
   (let [[uri fragment] (str/split ref #"#")]
     (if (empty? uri)
@@ -287,16 +294,16 @@
          errors)))))
 
 
-(let [test
-      {:filename "dependencies.json",
-       :test-group-description "dependencies with boolean subschemas",
-       :test-description
-       "object with property having schema false is invalid",
-       :schema {"dependencies" {"foo" true, "bar" false}},
-       :data {"bar" 2},
-       :valid false,
-       :failures [{:message "Incorrectly judged valid"}]}]
+(comment
+  (let [test
+        {:filename "propertyNames.json",
+         :test-group-description "propertyNames validation",
+         :test-description "all property names valid",
+         :schema {"propertyNames" {"maxLength" 3}},
+         :data {"f" {}, "foo" {}},
+         :valid true,
+         :failures [() ()]}]
 
-  (validate
-   (:schema test)
-   (:data test)))
+    (validate
+     (:schema test)
+     (:data test))))

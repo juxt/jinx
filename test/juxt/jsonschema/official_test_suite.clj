@@ -62,6 +62,7 @@
    "minLength.json"
    "pattern.json"
    "items.json"
+   "additionalItems.json"
    "maxItems.json"
    "minItems.json"
    "uniqueItems.json"
@@ -79,6 +80,7 @@
    "additionalProperties.json"
    "default.json"
    "dependencies.json"
+   "propertyNames.json"
 
    }
  )
@@ -92,6 +94,7 @@
        "minLength.json"
        "pattern.json"
        "items.json"
+       "additionalItems.json"
        "maxItems.json"
        "minItems.json"
        "uniqueItems.json"
@@ -109,6 +112,7 @@
        "additionalProperties.json"
        "default.json"
        "dependencies.json"
+       "propertyNames.json"
 
        ;;"definitions.json"
        ;;"ref.json"
