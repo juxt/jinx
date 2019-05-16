@@ -48,78 +48,50 @@
 (def TESTS-DIR (-> (System/getenv "JUXT_REPOS")
                    (io/file "JSON-Schema-Test-Suite/tests/draft7")))
 
-;; TODO: Eventually use file-seq to scan for all tests, not just at
-;; the top-level.
-(file-seq TESTS-DIR)
+(def IMPLEMENTED
+  #{"boolean_schema.json"
+    "type.json"
+    "enum.json"
+    "const.json"
+    "maxLength.json"
+    "minLength.json"
+    "pattern.json"
+    "items.json"
+    "additionalItems.json"
+    "maxItems.json"
+    "minItems.json"
+    "uniqueItems.json"
+    "multipleOf.json"
+    "maximum.json"
+    "exclusiveMaximum.json"
+    "minimum.json"
+    "exclusiveMinimum.json"
+    "contains.json"
+    "maxProperties.json"
+    "minProperties.json"
+    "required.json"
+    "properties.json"
+    "patternProperties.json"
+    "additionalProperties.json"
+    "default.json"
+    "dependencies.json"
+    "propertyNames.json"})
 
-(set/difference
- (set (seq (.list TESTS-DIR)))
- #{"boolean_schema.json"
-   "type.json"
-   "enum.json"
-   "const.json"
-   "maxLength.json"
-   "minLength.json"
-   "pattern.json"
-   "items.json"
-   "additionalItems.json"
-   "maxItems.json"
-   "minItems.json"
-   "uniqueItems.json"
-   "multipleOf.json"
-   "maximum.json"
-   "exclusiveMaximum.json"
-   "minimum.json"
-   "exclusiveMinimum.json"
-   "contains.json"
-   "maxProperties.json"
-   "minProperties.json"
-   "required.json"
-   "properties.json"
-   "patternProperties.json"
-   "additionalProperties.json"
-   "default.json"
-   "dependencies.json"
-   "propertyNames.json"
+(comment
+  "Get a list of the tests yet to implement"
+  (set/difference
+   (set (filter seq (map (comp str #(.relativize (.toPath TESTS-DIR) %) (memfn toPath)) (file-seq TESTS-DIR))))
+   IMPLEMENTED))
 
-   }
- )
+(comment
+  "Run tests, show failures"
+  (let [results
+        (->> IMPLEMENTED
+             (tests TESTS-DIR)
+             (map test-jsonschema))
+        failing (remove success? results)]
 
-;; Test runner
-(->> #{"boolean_schema.json"
-       "type.json"
-       "enum.json"
-       "const.json"
-       "maxLength.json"
-       "minLength.json"
-       "pattern.json"
-       "items.json"
-       "additionalItems.json"
-       "maxItems.json"
-       "minItems.json"
-       "uniqueItems.json"
-       "multipleOf.json"
-       "maximum.json"
-       "exclusiveMaximum.json"
-       "minimum.json"
-       "exclusiveMinimum.json"
-       "contains.json"
-       "maxProperties.json"
-       "minProperties.json"
-       "required.json"
-       "properties.json"
-       "patternProperties.json"
-       "additionalProperties.json"
-       "default.json"
-       "dependencies.json"
-       "propertyNames.json"
-
-       ;;"definitions.json"
-       ;;"ref.json"
-       ;;"propertyNames.json"
-
-       }
-     (tests TESTS-DIR)
-     (map test-jsonschema)
-     (remove success?)
-     )
+    {:total-run (count results)
+     :passing (count (keep success? results))
+     :failing (count failing)
+     :failure-detail failing}))
