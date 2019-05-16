@@ -20,6 +20,9 @@
 (defn schema? [x]
   (or (object? x) (boolean? x)))
 
+(defn valid? [x]
+  (not (seq x)))
+
 ;; All references here relate to
 ;; draft-handrews-json-schema-validation-01.txt unless otherwise
 ;; stated.
@@ -130,10 +133,10 @@
   (when (sequential? instance)
     (cond
       (object? items)
-      (mapcat
-       seq
+      (->>
        (for [[idx instance] (map-indexed vector instance)]
-         (validate (update ctx :path (fnil conj []) idx) items instance)))
+         (validate (update ctx :path (fnil conj []) idx) items instance))
+       (mapcat set))
 
       (boolean? items)
       (when (and (false? items) (not-empty instance))
@@ -141,10 +144,10 @@
 
       (array? items)
       ;; TODO: Consider short-circuiting
-      (mapcat
-       seq
+      (->>
        (for [[idx schema instance] (map vector (range) (concat items (repeat (get schema "additionalItems"))) instance)]
-         (validate (update ctx :path (fnil conj []) idx) schema instance))))))
+         (validate (update ctx :path (fnil conj []) idx) schema instance))
+       (mapcat seq)))))
 
 (defmethod check-assertion "maxItems" [_ ctx max-items schema instance]
   (when (array? instance)
@@ -184,40 +187,40 @@
 
 (defmethod check-assertion "properties" [_ ctx properties schema instance]
   (when (object? instance)
-    (mapcat
-     seq
+    (->>
      (for [[k subschema] properties
            :let [child-instance (get instance k)]
            :when child-instance]
-       (validate (update ctx :path (fnil conj []) "properties" k) subschema child-instance)))))
+       (validate (update ctx :path (fnil conj []) "properties" k) subschema child-instance))
+     (mapcat seq))))
 
 (defmethod check-assertion "patternProperties" [_ ctx pattern-properties schema instance]
   (when (object? instance)
-    (mapcat
-     seq
-     (let [compiled-pattern-properties (map (fn [[k v]] [(re-pattern k) v]) pattern-properties)]
+    (let [compiled-pattern-properties (map (fn [[k v]] [(re-pattern k) v]) pattern-properties)]
+      (->>
        (for [[propname child-instance] instance
              [pattern subschema] compiled-pattern-properties
              :when (re-seq pattern propname)]
          (validate
           (update ctx :path (fnil conj []) "patternProperties" (str pattern))
           subschema
-          child-instance))))))
+          child-instance))
+       (mapcat seq)))))
 
 (defmethod check-assertion "additionalProperties" [_ ctx additional-properties schema instance]
   (when (object? instance)
-    (mapcat
-     seq
-     (let [properties (set (keys (get schema "properties")))
-           compiled-patterns (when-let [pattern-properties (get schema "patternProperties")]
-                               (map (fn [[k v]] (re-pattern k)) pattern-properties))]
+    (let [properties (set (keys (get schema "properties")))
+          compiled-patterns (when-let [pattern-properties (get schema "patternProperties")]
+                              (map (fn [[k v]] (re-pattern k)) pattern-properties))]
+      (->>
        (for [[propname child-instance] instance
              :when (not (contains? properties propname))
              :when (nil? (some #(re-seq % propname) compiled-patterns))]
          (validate
           (update ctx :path (fnil conj []) "additionalProperties")
           additional-properties
-          child-instance))))))
+          child-instance))
+       (mapcat seq)))))
 
 (defmethod check-assertion "dependencies" [_ ctx dependencies schema instance]
   (when (object? instance)
@@ -234,9 +237,10 @@
 
 (defmethod check-assertion "propertyNames" [_ ctx property-names schema instance]
   (when (object? instance)
-    (->> (for [propname (keys instance)]
-           (validate ctx property-names propname))
-         (mapcat seq))))
+    (->>
+     (for [propname (keys instance)]
+       (validate ctx property-names propname))
+     (mapcat seq))))
 
 (defmethod check-assertion "allOf" [_ ctx all-of schema instance]
   (->>
@@ -264,6 +268,10 @@
       [{:message "No schema validates in oneOf validation"}]
       (not= 1 (count valids))
       [{:message (format "Multiple schemas (%s) are valid in oneOf validation" (str/join ", " valids))}])))
+
+(defmethod check-assertion "not" [_ ctx not schema instance]
+  (when (valid? (validate (update ctx :path (fnil conj []) "not") not instance))
+    [{:message "Schema should not be valid"}]))
 
 (defn resolve-ref [ctx ref]
   (let [[uri fragment] (str/split ref #"#")]
@@ -319,7 +327,6 @@
             (concat (check-assertion k ctx (get schema k) schema instance))))
          ;; Finally, return the errors (even if empty).
          errors)))))
-
 
 (comment
   (let [test

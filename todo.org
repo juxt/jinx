@@ -36,11 +36,11 @@ file:/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/
 *** TODO 6.6.1 if
 *** TODO 6.6.2 then
 *** TODO 6.6.3 else
-** TODO [#A] 6.7 Keywords for Applying Subschemas With Boolean Logic
-*** TODO 6.7.1 allOf
-*** TODO 6.7.2 anyOf
-*** TODO 6.7.3 oneOf
-*** TODO 6.7.4 not
+** DONE [#A] 6.7 Keywords for Applying Subschemas With Boolean Logic
+*** DONE 6.7.1 allOf
+*** DONE 6.7.2 anyOf
+*** DONE 6.7.3 oneOf
+*** DONE 6.7.4 not
 * TODO [#B] 7. Semantic Validation With "format"
 * TODO [#C] 8. String-Encoding Non-JSON Data
 * TODO [#C] 9. Schema Re-Use With "definitions"

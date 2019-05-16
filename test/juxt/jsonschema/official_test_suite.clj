@@ -78,7 +78,8 @@
     "propertyNames.json"
     "allOf.json"
     "anyOf.json"
-    "oneOf.json"})
+    "oneOf.json"
+    "not.json"})
 
 (comment
   "Get a list of the tests yet to implement"
