@@ -1,4 +1,4 @@
-= jsonschema validator for Clojure(Script)
+= JSON Schema for Clojure(Script)
 
 Almost all Clojure implementations of https://json-schema.org/[json
 schema validators] wrap Java libraries. This is generally a good idea.
@@ -18,9 +18,21 @@ can be useful:
 * Extensibility: jsonschema is designed to be extended with additional
   vocabularies. Clojure has some nice open-for-extension mechanisms.
 
+== Scope
+
+This library implements JSON Schema 'draft7'
+(draft-handrews-json-schema-validation-01).
+
 == Status
 
-In development, nothing to see here.
+This is a new project.
+
+440/444 validation tests currently pass (all except for `if`, `then`
+and `else`) which have not yet been implemented.
+
+Alpha status: changes may break compatibility. Use with caution.
+
+
 
 == Testing
 
