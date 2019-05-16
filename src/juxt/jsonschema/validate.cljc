@@ -163,6 +163,7 @@
 
 (defmethod check-assertion "contains" [_ ctx contains schema instance]
   (when (array? instance)
+    ;; TODO: Beware of short-circuiting using 'some' (see 3.3.2)
     (when-not (some #(empty? (validate ctx contains %)) instance)
       [{:message "Instance is not valid against schema"}])))
 
