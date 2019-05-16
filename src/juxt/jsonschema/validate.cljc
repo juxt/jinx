@@ -11,6 +11,15 @@
 
 (declare validate)
 
+(defn array? [x]
+  (sequential? x))
+
+(defn object? [x]
+  (map? x))
+
+(defn schema? [x]
+  (or (object? x) (boolean? x)))
+
 ;; All references here relate to
 ;; draft-handrews-json-schema-validation-01.txt unless otherwise
 ;; stated.
@@ -44,8 +53,8 @@
 (def type-preds
   {"null" nil?
    "boolean" boolean?
-   "object" map?
-   "array" sequential?
+   "object" object?
+   "array" array?
    "number" number?
    "string" string?
    "integer" integer?})
@@ -55,7 +64,7 @@
     (string? type)
     (when-not ((type-preds type) instance)
       [{:message (format "Value must be of type %s" type)}])
-    (sequential? type)
+    (array? type)
     (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
       [{:message (format "Value must be of type %s" (str/join " or " type))}])))
 
@@ -120,60 +129,60 @@
 (defmethod check-assertion "items" [_ ctx items schema instance]
   (when (sequential? instance)
     (cond
-      (map? items)
+      (object? items)
       (mapcat
        seq
        (for [[idx instance] (map-indexed vector instance)]
          (validate (update ctx :path (fnil conj []) idx) items instance)))
 
-      (sequential? items)
+      (boolean? items)
+      (when (and (false? items) (not-empty instance))
+        [{:message "Items must be empty to satisfy a false schema"}])
+
+      (array? items)
       ;; TODO: Consider short-circuiting
       (mapcat
        seq
        (for [[idx schema instance] (map vector (range) (concat items (repeat (get schema "additionalItems"))) instance)]
-         (validate (update ctx :path (fnil conj []) idx) schema instance)))
-
-      (boolean? items)
-      (when (and (false? items) (not-empty instance))
-        [{:message "Items must be empty to satisfy a false schema"}]))))
+         (validate (update ctx :path (fnil conj []) idx) schema instance))))))
 
 (defmethod check-assertion "maxItems" [_ ctx max-items schema instance]
-  (when (sequential? instance)
+  (when (array? instance)
     (when (> (count instance) max-items)
       [{:message "maxItems exceeded"}])))
 
 (defmethod check-assertion "minItems" [_ ctx min-items schema instance]
-  (when (sequential? instance)
+  (when (array? instance)
     (when (< (count instance) min-items)
       [{:message "minItems not reached"}])))
 
 (defmethod check-assertion "uniqueItems" [_ ctx unique-items? schema instance]
-  (when (and (sequential? instance) unique-items?)
+  (when (and (array? instance) unique-items?)
     (when-not (apply distinct? instance)
       [{:message "Instance elements are not all unique"}])))
 
 (defmethod check-assertion "contains" [_ ctx contains schema instance]
-  (when (sequential? instance)
+  (when (array? instance)
     (when-not (some #(empty? (validate ctx contains %)) instance)
       [{:message "Instance is not valid against schema"}])))
 
 (defmethod check-assertion "maxProperties" [_ ctx max-properties schema instance]
-  (when (map? instance)
+  (when (object? instance)
     (when-not (<= (count (keys instance)) max-properties)
       [{:message "Max properties exceeded"}])))
 
 (defmethod check-assertion "minProperties" [_ ctx min-properties schema instance]
-  (when (map? instance)
+  (when (object? instance)
     (when-not (<= min-properties (count (keys instance)))
       [{:message "Min properties not reached"}])))
 
 (defmethod check-assertion "required" [_ ctx required schema instance]
-  (when (map? instance)
+  (when (object? instance)
     (when-not (set/subset? (set required) (set (keys instance)))
       [{:message "Missing required property"}])))
 
 (defmethod check-assertion "properties" [_ ctx properties schema instance]
-  (when (map? instance)
+  (when (object? instance)
     (mapcat
      seq
      (for [[k subschema] properties
@@ -182,21 +191,20 @@
        (validate (update ctx :path (fnil conj []) "properties" k) subschema child-instance)))))
 
 (defmethod check-assertion "patternProperties" [_ ctx pattern-properties schema instance]
-  (when (map? instance)
-    (if (not (map? instance))
-      [{:message "Must be an object"}]
-      (mapcat
-       seq
-       (let [compiled-pattern-properties (map (fn [[k v]] [(re-pattern k) v]) pattern-properties)]
-         (for [[propname child-instance] instance
-               [pattern subschema] compiled-pattern-properties
-               :when (re-seq pattern propname)
-               ]
-           (validate (update ctx :path (fnil conj []) "patternProperties" (str pattern)) subschema child-instance)))))))
+  (when (object? instance)
+    (mapcat
+     seq
+     (let [compiled-pattern-properties (map (fn [[k v]] [(re-pattern k) v]) pattern-properties)]
+       (for [[propname child-instance] instance
+             [pattern subschema] compiled-pattern-properties
+             :when (re-seq pattern propname)]
+         (validate
+          (update ctx :path (fnil conj []) "patternProperties" (str pattern))
+          subschema
+          child-instance))))))
 
 (defmethod check-assertion "additionalProperties" [_ ctx additional-properties schema instance]
-  []
-  (when (map? instance)
+  (when (object? instance)
     (mapcat
      seq
      (let [properties (set (keys (get schema "properties")))
@@ -205,7 +213,23 @@
        (for [[propname child-instance] instance
              :when (not (contains? properties propname))
              :when (nil? (some #(re-seq % propname) compiled-patterns))]
-         (validate (update ctx :path (fnil conj []) "additionalProperties") additional-properties child-instance))))))
+         (validate
+          (update ctx :path (fnil conj []) "additionalProperties")
+          additional-properties
+          child-instance))))))
+
+(defmethod check-assertion "dependencies" [_ ctx dependencies schema instance]
+  (when (object? instance)
+    (mapcat
+     seq
+     (for [[propname dvalue] dependencies]
+       (when (contains? instance propname)
+         (cond
+           (schema? dvalue)
+           (validate ctx dvalue instance)
+           (array? dvalue)
+           (when-not (every? #(contains? instance %) dvalue)
+             [{:message "Not every dependency in instance"}])))))))
 
 (defn resolve-ref [ctx ref]
   (let [[uri fragment] (str/split ref #"#")]
@@ -225,13 +249,13 @@
   ([ctx schema instance]
    ;; We keep trying to find errors, returning them in a list.
    (cond
-     (and (map? schema) (contains? schema "$id"))
+     (and (object? schema) (contains? schema "$id"))
      (validate
       (update ctx :base-uri uri/join (get schema "$id"))
       (dissoc schema "$id")             ; avoid stack-overflow!
       instance)
 
-     (and (map? schema) (contains? schema "$ref"))
+     (and (object? schema) (contains? schema "$ref"))
      (let [[new-ctx new-schema] (resolve-ref ctx (get schema "$ref"))]
        (validate new-ctx new-schema instance))
 
@@ -264,19 +288,15 @@
 
 
 (let [test
-      {:filename "properties.json",
-       :test-group-description
-       "properties, patternProperties, additionalProperties interaction",
-       :test-description "patternProperty validates nonproperty",
-       :schema
-       {"properties"
-        {"foo" {"type" "array", "maxItems" 3}, "bar" {"type" "array"}},
-        "patternProperties" {"f.o" {"minItems" 2}},
-        "additionalProperties" {"type" "integer"}},
-       :data {"fxo" [1 2]},
-       :valid true,
-       :failures [{:message "Value must be of type integer"}]}]
+      {:filename "dependencies.json",
+       :test-group-description "dependencies with boolean subschemas",
+       :test-description
+       "object with property having schema false is invalid",
+       :schema {"dependencies" {"foo" true, "bar" false}},
+       :data {"bar" 2},
+       :valid false,
+       :failures [{:message "Incorrectly judged valid"}]}]
 
   (validate
-     (:schema test)
-     (:data test)))
+   (:schema test)
+   (:data test)))

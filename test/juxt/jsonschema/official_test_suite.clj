@@ -76,8 +76,9 @@
    "required.json"
    "properties.json"
    "patternProperties.json"
-
+   "additionalProperties.json"
    "default.json"
+   "dependencies.json"
 
    }
  )
@@ -105,8 +106,9 @@
        "required.json"
        "properties.json"
        "patternProperties.json"
-
+       "additionalProperties.json"
        "default.json"
+       "dependencies.json"
 
        ;;"definitions.json"
        ;;"ref.json"
@@ -115,4 +117,5 @@
        }
      (tests TESTS-DIR)
      (map test-jsonschema)
-     (remove success?))
+     (remove success?)
+     )

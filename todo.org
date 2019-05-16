@@ -30,7 +30,7 @@ file:/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/
 *** DONE 6.5.4 properties
 *** DONE 6.5.5 patternProperties
 *** DONE 6.5.6 additionalProperties
-*** TODO 6.5.7 dependenices
+*** DONE 6.5.7 dependenices
 *** TODO 6.5.8 propertyNames
 ** TODO [#C] 6.6 Keywords for Applying Subschemas Conditionally
 *** TODO 6.6.1 if
