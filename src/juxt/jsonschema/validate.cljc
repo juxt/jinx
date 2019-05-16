@@ -247,6 +247,14 @@
        :caused-by failures}])
    (mapcat seq)))
 
+(defmethod check-assertion "anyOf" [_ ctx any-of schema instance]
+  (when
+      (every? seq
+              (for [[subschema idx] (map vector any-of (range))]
+                (validate (update ctx :path (fnil conj []) "anyOf" idx) subschema instance)
+                ))
+    [{:message "No schema validates for anyOf validation"}]))
+
 (defn resolve-ref [ctx ref]
   (let [[uri fragment] (str/split ref #"#")]
     (if (empty? uri)
