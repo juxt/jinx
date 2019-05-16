@@ -273,6 +273,16 @@
   (when (valid? (validate (update ctx :path (fnil conj []) "not") not instance))
     [{:message "Schema should not be valid"}]))
 
+(defmethod check-assertion "if" [_ ctx if schema instance]
+  (if (valid? (validate (update ctx :path (fnil conj []) "if") if instance))
+    (when-let [then (get schema "then")]
+      (validate (update ctx :path (fnil conj []) "then") then instance))
+    (when-let [then (get schema "else")]
+      (validate (update ctx :path (fnil conj []) "else") then instance))))
+
+;; TODO: Rather than get, use a macro to retrieve either strings and
+;; keywords, supporting both
+
 (defn resolve-ref [ctx ref]
   (let [[uri fragment] (str/split ref #"#")]
     (if (empty? uri)

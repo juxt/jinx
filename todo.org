@@ -1,7 +1,7 @@
 * Tests are here
 file:/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/
 
-* TODO 6. Validation Keywords
+* DONE 6. Validation Keywords
 ** DONE [#A] 6.1 Validation Keywords for Any Instance Type
 *** DONE 6.1.1 type
 *** DONE 6.1.2 enum
@@ -32,10 +32,10 @@ file:/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/
 *** DONE 6.5.6 additionalProperties
 *** DONE 6.5.7 dependenices
 *** DONE 6.5.8 propertyNames
-** TODO [#C] 6.6 Keywords for Applying Subschemas Conditionally
-*** TODO 6.6.1 if
-*** TODO 6.6.2 then
-*** TODO 6.6.3 else
+** DONE [#C] 6.6 Keywords for Applying Subschemas Conditionally
+*** DONE 6.6.1 if
+*** DONE 6.6.2 then
+*** DONE 6.6.3 else
 ** DONE [#A] 6.7 Keywords for Applying Subschemas With Boolean Logic
 *** DONE 6.7.1 allOf
 *** DONE 6.7.2 anyOf

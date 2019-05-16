@@ -79,7 +79,8 @@
     "allOf.json"
     "anyOf.json"
     "oneOf.json"
-    "not.json"})
+    "not.json"
+    "if-then-else.json"})
 
 (comment
   "Get a list of the tests yet to implement"

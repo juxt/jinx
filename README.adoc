@@ -15,8 +15,12 @@ can be useful:
   jsonschema validation such as
   https://github.com/epoberezkin/ajv[Ajv].
 
-* Extensibility: jsonschema is designed to be extended with additional
+* Extensibility: JSON Schema is designed to be extended with additional
   vocabularies. Clojure has some nice open-for-extension mechanisms.
+
+* Size: Implementing JSON Schema is not that scary in a language as
+  nice as Clojure. There's not so much code to read, understand and
+  possibly extend.
 
 == Scope
 
@@ -25,20 +29,15 @@ This library implements JSON Schema 'draft7'
 
 == Status
 
-This is a new project.
-
-440/444 validation tests currently pass (all except for `if`, `then`
-and `else`) which have not yet been implemented.
-
-Alpha status: changes may break compatibility. Use with caution.
-
-
+CAUTION: This is a new project, of alpha status. There may be future
+incompatible changes ahead.
 
 == Testing
 
 This library is tested with the official
 https://github.com/json-schema-org/JSON-Schema-Test-Suite[JSON-Schema-Test-Suite].
 
+All 444 non-optional tests currently pass.
 
 == Alternative implementations
 
