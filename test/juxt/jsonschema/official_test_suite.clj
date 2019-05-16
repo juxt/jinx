@@ -75,7 +75,8 @@
     "additionalProperties.json"
     "default.json"
     "dependencies.json"
-    "propertyNames.json"})
+    "propertyNames.json"
+    "allOf.json"})
 
 (comment
   "Get a list of the tests yet to implement"

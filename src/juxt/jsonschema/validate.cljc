@@ -221,8 +221,7 @@
 
 (defmethod check-assertion "dependencies" [_ ctx dependencies schema instance]
   (when (object? instance)
-    (mapcat
-     seq
+    (->>
      (for [[propname dvalue] dependencies]
        (when (contains? instance propname)
          (cond
@@ -230,14 +229,23 @@
            (validate ctx dvalue instance)
            (array? dvalue)
            (when-not (every? #(contains? instance %) dvalue)
-             [{:message "Not every dependency in instance"}])))))))
+             [{:message "Not every dependency in instance"}]))))
+     (mapcat seq))))
 
 (defmethod check-assertion "propertyNames" [_ ctx property-names schema instance]
   (when (object? instance)
-    (mapcat
-     seq
-     (for [propname (keys instance)]
-       (validate ctx property-names propname)))))
+    (->> (for [propname (keys instance)]
+           (validate ctx property-names propname))
+         (mapcat seq))))
+
+(defmethod check-assertion "allOf" [_ ctx all-of schema instance]
+  (->>
+   (for [[subschema idx] (map vector all-of (range))
+         :let [failures (seq (validate (update ctx :path (fnil conj []) "allOf" idx) subschema instance))]
+         :when failures]
+     [{:message (format "allOf schema failed due to subschema at %s failing" idx)
+       :caused-by failures}])
+   (mapcat seq)))
 
 (defn resolve-ref [ctx ref]
   (let [[uri fragment] (str/split ref #"#")]
