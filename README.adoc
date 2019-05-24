@@ -32,10 +32,20 @@ This library implements JSON Schema 'draft7'
 CAUTION: This is a new project, of alpha status. There may be future
 incompatible changes ahead.
 
+Most core features are working but there is more work yet to do:
+
+* Format validation
+* Annotation gathering
+* Improved Error messages
+* The schema-path and data-path values on failures
+* Relative json-pointer
+
 == Testing
 
 This library is tested with the official
 https://github.com/json-schema-org/JSON-Schema-Test-Suite[JSON-Schema-Test-Suite].
+
+Currently, all 490 non-optional tests pass.
 
 == Schemas
 
