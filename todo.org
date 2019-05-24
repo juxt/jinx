@@ -41,7 +41,19 @@ file:/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/
 *** DONE 6.7.2 anyOf
 *** DONE 6.7.3 oneOf
 *** DONE 6.7.4 not
+* DONE Fix refs tests errors/failures
+** DONE Load schemas, validate them according to themselves, find internal $ids
+
+* TODO Recursion protection (use schema-path visited hash-set)
 * TODO [#B] 7. Semantic Validation With "format"
 * TODO [#C] 8. String-Encoding Non-JSON Data
 * TODO [#C] 9. Schema Re-Use With "definitions"
 * TODO [#C] 10. Schema Annotations
+* TODO Annotations
+* TODO Default value annotations factored into oneOf in dependencies
+* TODO Relative jsonpointer
+* TODO Improve jsonpointer "Failed to locate" error messages
+* TODO Improved error messages and locators
+* TODO Download Ajv to compare
+* TODO Compare with luposlip/json-schema/, particularly errors
+* TODO Download release zip of JSON-Schema-Test-Suite or try with tools.deps tech to download git repo

@@ -5,18 +5,32 @@
    [cheshire.core :as json]
    [clojure.java.io :as io]
    [juxt.jsonschema.validate :refer [validate]]
-   [clojure.set :as set]))
+   [juxt.jsonschema.schema :refer [schema]]
+   [juxt.jsonschema.resolve :as resolv]
+   [clojure.set :as set]
+   [juxt.jsonschema.schema :as schema]))
+
+(def TESTS-ROOT (io/file (System/getenv "JUXT_REPOS") "JSON-Schema-Test-Suite"))
 
 (defn test-jsonschema [{:keys [schema data valid] :as test}]
   (try
-    (let [result (validate schema data)
+    (let [schema (schema/schema schema)
+          result (validate
+                  schema data
+                  {:resolvers
+                   [::resolv/built-in
+                    [::resolv/default-resolver
+                     {#"http://localhost:1234/(.*)"
+                      (fn [match]
+                        (io/file (io/file TESTS-ROOT "remotes") (second match))
+                        )}]]})
           success? (if valid (empty? result)
                        (not (empty? result)))]
       (cond-> test
         success? (assoc :result :success)
         (and (not success?) valid) (assoc :failures (vec result))
         (and (empty? result) (not valid)) (assoc :failures [{:message "Incorrectly judged valid"}])))
-    (catch Exception e (merge test {:result :error
+    (catch Throwable e (merge test {:result :error
                                     :error e}))))
 
 (defn success? [x] (= (:result x) :success))
@@ -45,8 +59,7 @@
       :data data
       :valid valid})))
 
-(def TESTS-DIR (-> (System/getenv "JUXT_REPOS")
-                   (io/file "JSON-Schema-Test-Suite/tests/draft7")))
+(def TESTS-DIR (io/file TESTS-ROOT "tests/draft7"))
 
 (def IMPLEMENTED
   #{"boolean_schema.json"
@@ -80,7 +93,11 @@
     "anyOf.json"
     "oneOf.json"
     "not.json"
-    "if-then-else.json"})
+    "if-then-else.json"
+    "ref.json"
+    "definitions.json"
+    "refRemote.json"
+    })
 
 (comment
   "Get a list of the tests yet to implement"
@@ -97,6 +114,33 @@
         failing (remove success? results)]
 
     {:total-run (count results)
-     :passing (count (keep success? results))
+     :passing (count (filter success? results))
+     :percent (format "%f%%" (float (* 100 (/ (count (filter success? results)) (count results)))))
      :failing (count failing)
      :failure-detail failing}))
+
+;; 9 failing tests
+;; 5 failing tests
+;; 3 failing tests
+
+
+
+#_(let [test
+      {:filename "refRemote.json",
+       :test-group-description "remote ref",
+       :test-description "remote ref valid",
+       :schema {"$ref" "http://localhost:1234/integer.json"},
+       :data 1,
+       :valid true,
+       :result :error,
+       }]
+
+  (validate
+   (schema/schema (:schema test))
+   (:data test)
+   {:resolvers [::resolv/built-in
+                [::resolv/default-resolver
+                 {#"http://localhost:1234/(.*)"
+                  (fn [match]
+                    (io/file (io/file TESTS-ROOT "remotes") (second match))
+                    )}]]}))
