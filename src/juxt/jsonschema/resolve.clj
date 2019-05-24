@@ -1,3 +1,5 @@
+;; Copyright © 2019, JUXT LTD.
+
 (ns juxt.jsonschema.resolve
   (:require
    [juxt.jsonschema.schema :as schema]

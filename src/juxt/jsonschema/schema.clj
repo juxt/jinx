@@ -1,3 +1,5 @@
+;; Copyright © 2019, JUXT LTD.
+
 (ns juxt.jsonschema.schema
   (:require
    [lambdaisland.uri :refer [join]]))

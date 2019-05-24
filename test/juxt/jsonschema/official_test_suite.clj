@@ -119,12 +119,6 @@
      :failing (count failing)
      :failure-detail failing}))
 
-;; 9 failing tests
-;; 5 failing tests
-;; 3 failing tests
-
-
-
 #_(let [test
       {:filename "refRemote.json",
        :test-group-description "remote ref",
