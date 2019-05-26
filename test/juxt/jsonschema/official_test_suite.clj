@@ -8,9 +8,12 @@
    [juxt.jsonschema.schema :refer [schema]]
    [juxt.jsonschema.resolve :as resolv]
    [clojure.set :as set]
-   [juxt.jsonschema.schema :as schema]))
+   [juxt.jsonschema.schema :as schema]
+   [cheshire.core :as cheshire]))
 
 (def TESTS-ROOT (io/file (System/getenv "JUXT_REPOS") "JSON-Schema-Test-Suite"))
+
+(def TESTS-DIR (io/file TESTS-ROOT "tests/draft7"))
 
 (defn test-jsonschema [{:keys [schema data valid] :as test}]
   (try
@@ -38,103 +41,74 @@
 ;; Test suite
 
 (defn tests
-  ([tests-dir]
-   (tests tests-dir nil))
-  ([tests-dir filename-pred]
-   (for [filename (-> tests-dir .list sort)
-         ;; Test filenames implemented so far or being worked on currently
-         :when ((or filename-pred some?) filename)
-         :let [testfile (io/file tests-dir filename)]
-         :when (.isFile testfile)
-         :let [objects (json/parse-stream (io/reader testfile))]
-         {:strs [schema tests description]} objects
-         ;; Any required parsing of the schema, do it now for performance
-         :let [test-group-description description]
-         test tests
-         :let [{:strs [description data valid]} test]]
-     {:filename filename
-      :test-group-description test-group-description
-      :test-description description
-      :schema schema
-      :data data
-      :valid valid})))
+  [tests-dir]
+  (for [testfile (file-seq TESTS-DIR)
 
-(def TESTS-DIR (io/file TESTS-ROOT "tests/draft7"))
+        ;;         filename (-> tests-dir .list sort)
+        ;; Test filenames implemented so far or being worked on currently
+        ;;         :when ((or filename-pred some?) filename)
+        ;;         :let [testfile (io/file tests-dir filename)]
 
-(def IMPLEMENTED
-  #{"boolean_schema.json"
-    "type.json"
-    "enum.json"
-    "const.json"
-    "maxLength.json"
-    "minLength.json"
-    "pattern.json"
-    "items.json"
-    "additionalItems.json"
-    "maxItems.json"
-    "minItems.json"
-    "uniqueItems.json"
-    "multipleOf.json"
-    "maximum.json"
-    "exclusiveMaximum.json"
-    "minimum.json"
-    "exclusiveMinimum.json"
-    "contains.json"
-    "maxProperties.json"
-    "minProperties.json"
-    "required.json"
-    "properties.json"
-    "patternProperties.json"
-    "additionalProperties.json"
-    "default.json"
-    "dependencies.json"
-    "propertyNames.json"
-    "allOf.json"
-    "anyOf.json"
-    "oneOf.json"
-    "not.json"
-    "if-then-else.json"
-    "ref.json"
-    "definitions.json"
-    "refRemote.json"
-    })
-
-(comment
-  "Get a list of the tests yet to implement"
-  (set/difference
-   (set (filter seq (map (comp str #(.relativize (.toPath TESTS-DIR) %) (memfn toPath)) (filter (memfn isFile) (file-seq TESTS-DIR)))))
-   IMPLEMENTED))
+        :when (.isFile testfile)
+        :let [objects (json/parse-stream (io/reader testfile))]
+        {:strs [schema tests description]} objects
+        ;; Any required parsing of the schema, do it now for performance
+        :let [test-group-description description]
+        test tests
+        :let [{:strs [description data valid]} test]]
+    {:filename (str testfile)
+     :test-group-description test-group-description
+     :test-description description
+     :schema schema
+     :data data
+     :valid valid}))
 
 (comment
   "Run tests, show failures"
   (let [results
-        (->> IMPLEMENTED
-             (tests TESTS-DIR)
+        (->> (tests TESTS-DIR)
              (map test-jsonschema))
         failing (remove success? results)]
 
     {:total-run (count results)
      :passing (count (filter success? results))
-     :percent (format "%f%%" (float (* 100 (/ (count (filter success? results)) (count results)))))
+     :pass-rate (format "%f%%" (float (* 100 (/ (count (filter success? results)) (count results)))))
      :failing (count failing)
      :failure-detail failing}))
 
-#_(let [test
-      {:filename "refRemote.json",
-       :test-group-description "remote ref",
-       :test-description "remote ref valid",
-       :schema {"$ref" "http://localhost:1234/integer.json"},
-       :data 1,
+;; failing 58
+;; failing 56
+;; failing 52
+;; failing 50
+;; failing 49
+;; failing 48
+;; failing 47
+;; failing 46
+;; failing 45
+;; failing 44
+;; failing 43
+;; failing 42
+
+(let [test
+      {:filename
+       "/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/optional/content.json",
+       :test-group-description
+       "validation of binary-encoded media type documents",
+       :test-description "a valid base64-encoded JSON document",
+       :schema
+       {"contentMediaType" "application/json",
+        "contentEncoding" "base64"},
+       :data "eyJmb28iOiAiYmFyIn0K",
        :valid true,
-       :result :error,
-       }]
+       :failures [{:message "Instance is not application/json"}]}]
 
   (validate
    (schema/schema (:schema test))
    (:data test)
-   {:resolvers [::resolv/built-in
-                [::resolv/default-resolver
-                 {#"http://localhost:1234/(.*)"
-                  (fn [match]
-                    (io/file (io/file TESTS-ROOT "remotes") (second match))
-                    )}]]}))
+   {:resolvers
+    [::resolv/built-in
+     [::resolv/default-resolver
+      {#"http://localhost:1234/(.*)"
+       (fn [match]
+         (io/file (io/file TESTS-ROOT "remotes") (second match))
+         )}]]}))
