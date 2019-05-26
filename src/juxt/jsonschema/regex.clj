@@ -40,8 +40,7 @@
 
     (->> coll vec fork (tree-seq (comp sequential? first) seq)
          rest (filter (comp not sequential? first))
-         join
-         )))
+         join)))
 
 (defprotocol RegExpressable
   (as-regex-str [_] "Return a string that represents the Java regex"))
@@ -93,30 +92,13 @@
 
     (apply str (concat
                 (map #(format "\\p{%s}" %) classes)
-                ;; TODO: Process remaining to find ranges - see range.clj
-
+                ;; Find ranges
                 (map (fn [x] (if (> (count x) 1)
                                (format "[%s-%s]"
                                        (char->regex (first x))
                                        (char->regex (last x)))
                                (char->regex (first x))))
-                     (partition-into-ranges-iter remaining))
-
-                #_(map as-regex-str (sort remaining))))))
-
-;;(as-regex-str (map char (range 0x00 (inc 0xff))))
-
-;;(range \a \z)
-
-;;(int \u0041)
-
-(->>
- (partition-into-ranges-iter (concat (char-range \A \X) [\Z] (char-range \1 \6)))
- (map (fn [x] (if (> (count x) 1)
-                (format "[%s-%s]"
-                        (char->regex (first x))
-                        (char->regex (last x)))
-                (char->regex (first x))))))
+                     (partition-into-ranges-iter remaining))))))
 
 (extend-protocol RegExpressable
   clojure.lang.ISeq
@@ -165,26 +147,19 @@
   (when matcher
     (.group matcher name)))
 
-
-
-;;(def quoted-string (compose "%s((?:[%s]|%s)*)%s" DQUOTE qdtext quoted-pair DQUOTE))
-
-
-;; RFC 5322
+;; RFC 5322, Section 3.2.3
 
 (def atext (concat ALPHA DIGIT [\! \# \$ \% \& \' \* \+ \- \/ \= \? \^ \_ \` \{ \| \} \~]))
 
-;;(re-matches (compose "[%s]+" (as-regex-str atext)) "ab+~\"")
+(def atom (compose "[%s]+" (as-regex-str atext)))
 
+(def dot-atom-text (compose "[%s]+(?:\\.[%s]+)*" (as-regex-str atext) (as-regex-str atext)))
 
-#_(re-matches atom "aeselijhukhku.dfe")
+;; RFC 5322, Section 3.4.1
 
-(def atom (re-pattern (format "[%s]+" (as-regex-str atext))))
+(def domain dot-atom-text)
 
-#_(def dot-atom-text (re-pattern (apply format "[%s]+(?:\\.[%s]+)*" (map as-regex-str [atext atext]))))
+(def addr-spec (compose "%s@%s" dot-atom-text domain))
 
 (comment
-  (re-matches atom "aeselijhukhku.dfe")
-  (re-matches dot-atom-text "aeselijhukhku.dfe.efs.efs.efs"))
-
-#_(def specials (concat ALPHA DIGIT [\( \) \< \> \[ \] \: \; \@ \\ \, \.]))
+  (re-matches addr-spec "mal@juxt.pro"))
