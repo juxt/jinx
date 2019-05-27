@@ -271,11 +271,12 @@
 
 (def ihost (compose "(?<host>%s|%s)" IPv4address ireg-name)) ;; missing IP-literal for simplification
 
-(def port (compose "(?:%s)*" DIGIT))
+(def port (compose "(?<port>(?:%s)*)" DIGIT))
 
-(def iauthority (compose (str "(?:%s@)?"
-                              "(?:%s)"
-                              "(?:%s%s)?") iuserinfo ihost COLON port))
+(def iauthority (compose (str "(?<authority>"
+                              (str "(?:%s@)?"
+                                   "(?:%s)"
+                                   "(?:%s%s)?") ")") iuserinfo ihost COLON port))
 
 (def ipchar (compose "(?:%s|%s|%s|%s|%s)" iunreserved pct-encoded sub-delims \: \@))
 
@@ -304,6 +305,24 @@
 
 (def IRI (compose "(?<scheme>%s):(?:%s)(?:%s(?<query>%s))?(?:#(?<fragment>%s))?" scheme ihier-part QUESTION-MARK iquery ifragment))
 
+#_(re-matches irelative-ref "//ƒøø.ßår/?∂éœ=πîx#πîüx")
+#_(re-matches irelative-ref "//foo.bar/?u=nix#fo")
+#_(re-matches irelative-part "//foo.bar/")
+#_(re-matches irelative-part "//ƒøø.ßår/")
+
+#_(re-matches irelative-part "app")
+
+(def irelative-part (compose "(?://%s%s|%s|%s|%s)"
+                             iauthority ipath-abempty ipath-absolute
+                             ipath-noscheme ipath-empty))
+
+(def irelative-ref (compose "%s(?:%s(?<query>%s))?(?:#(?<fragment>%s))?" irelative-part QUESTION-MARK iquery ifragment))
+
+;; Can't do this AND have named groups - better to ask app logic to
+;; ask if a string is either an IRI or a irelative-ref
+
+#_(def IRI-reference (compose "(?:%s|%s)" IRI irelative-ref))
+
 (comment
   (re-group-by-name (matched IRI "https://jon:pither@juxt.pro/malcolm?foo#bar") "host"))
 
@@ -320,7 +339,7 @@
 
 (def domain dot-atom-text)
 
-(def addr-spec (compose "%s@%s" dot-atom-text domain))
+(def addr-spec (compose "(?<localpart>%s)@(?<domain>%s)" dot-atom-text domain))
 
 (comment
   (re-matches addr-spec "mal@juxt.pro"))

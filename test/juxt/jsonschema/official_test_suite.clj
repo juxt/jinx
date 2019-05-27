@@ -88,16 +88,18 @@
 ;; failing 44
 ;; failing 43
 ;; failing 42
+;; failing 40
+;; failing 38
 
-(let [test
+#_(let [test
       {:filename
        "/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/optional/format/iri-reference.json",
        :test-group-description "validation of IRI References",
-       :test-description "an invalid IRI Reference",
+       :test-description "a valid protocol-relative IRI Reference",
        :schema {"format" "iri-reference"},
-       :data "\\\\WINDOWS\\filëßåré",
-       :valid false,
-       :failures [{:message "Incorrectly judged valid"}]}]
+       :data "//ƒøø.ßår/?∂éœ=πîx#πîüx",
+       :valid true,
+       :failures [{:message "Doesn't match IRI-reference format"}]}]
 
   (validate
    (schema/schema (:schema test))

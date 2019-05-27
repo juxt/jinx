@@ -376,15 +376,16 @@
 
 (defmethod check-format "iri" [fmt schema instance]
   (when (string? instance)
-    ;; TODO: Improve this regex: RFC3987
-    (when-not (re-matches #".*" instance)
-      [{:message "Doesn't match iri format"}])))
+    ;; RFC3987
+    (when-not (re-matches regex/IRI instance)
+      [{:message "Doesn't match IRI format"}])))
 
 (defmethod check-format "iri-reference" [fmt schema instance]
   (when (string? instance)
-    ;; TODO: Improve this regex: RFC3987
-    (when-not (re-matches #".*" instance)
-      [{:message "Doesn't match iri-reference format"}])))
+    ;; RFC3987
+    (when-not (or (re-matches regex/IRI instance)
+                  (re-matches regex/irelative-ref instance))
+      [{:message "Doesn't match IRI-reference format"}])))
 
 (defmethod check-format "uri-template" [fmt schema instance]
   (when (string? instance)
