@@ -359,20 +359,21 @@
 (defmethod check-format "ipv6" [fmt schema instance]
   (when (string? instance)
     ;; TODO: Improve this regex: RFC4291
-    (when-not (re-matches #".*" instance)
+    (when-not (re-matches regex/IPv6address instance)
       [{:message "Doesn't match ipv6 format"}])))
 
 (defmethod check-format "uri" [fmt schema instance]
   (when (string? instance)
-    ;; TODO: Improve this regex: RFC3986
-    (when-not (re-matches #".*" instance)
-      [{:message "Doesn't match uri format"}])))
+    ;; RFC3986
+    (when-not (re-matches regex/URI instance)
+      [{:message "Doesn't match URI format"}])))
 
 (defmethod check-format "uri-reference" [fmt schema instance]
   (when (string? instance)
     ;; TODO: Improve this regex: RFC3986
-    (when-not (re-matches #".*" instance)
-      [{:message "Doesn't match uri-reference format"}])))
+    (when-not (or (re-matches regex/URI instance)
+                  (re-matches regex/relative-ref instance))
+      [{:message "Doesn't match URI-reference format"}])))
 
 (defmethod check-format "iri" [fmt schema instance]
   (when (string? instance)

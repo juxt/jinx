@@ -20,3 +20,6 @@
     (are [group expected] (= expected (regex/re-group-by-name m group))
       "localpart" "mal"
       "domain" "juxt.pro")))
+
+
+;; TODO: ipv6 tests from rfc2234

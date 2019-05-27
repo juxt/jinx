@@ -90,16 +90,20 @@
 ;; failing 42
 ;; failing 40
 ;; failing 38
+;; failing 35
+;; failing 33
+;; failing 27
+;; failing 25
 
-#_(let [test
+(let [test
       {:filename
-       "/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/optional/format/iri-reference.json",
-       :test-group-description "validation of IRI References",
-       :test-description "a valid protocol-relative IRI Reference",
-       :schema {"format" "iri-reference"},
-       :data "//ƒøø.ßår/?∂éœ=πîx#πîüx",
+       "/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/optional/format/iri.json",
+       :test-group-description "validation of IRIs",
+       :test-description "a valid IRI based on IPv6",
+       :schema {"format" "iri"},
+       :data "http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]",
        :valid true,
-       :failures [{:message "Doesn't match IRI-reference format"}]}]
+       :failures [{:message "Doesn't match IRI format"}]}]
 
   (validate
    (schema/schema (:schema test))

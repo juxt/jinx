@@ -173,7 +173,9 @@
 
 (def DQUOTE \")
 
-(def HEXDIG (concat DIGIT (int-range \A \F)))
+;; HEXDIG includes lower-case. RFC 5234: "ABNF strings are case
+;; insensitive and the character set for these strings is US-ASCII."
+(def HEXDIG (concat DIGIT (int-range \A \F) (int-range \a \f)))
 
 (def HTAB \tab)
 
@@ -192,28 +194,106 @@
 (def QUESTION-MARK 0x3F)
 (def PERIOD 0x2E)
 
-;; RFC 3986
+
+;; RFC 3986, Appendix A. Collected ABNF for URI
+
+(def dec-octet (compose "(?:%s|%s|%s|%s|%s)"
+                        DIGIT
+                        (concatenate (int-range 0x31 0x39) DIGIT)
+                        (concatenate \1 DIGIT DIGIT)
+                        (concatenate \2 (int-range 0x30 0x34) DIGIT)
+                        (concatenate \2 \5 (int-range 0x30 0x35))))
+
+(def IPv4address (compose "%s%s%s%s%s%s%s" dec-octet PERIOD dec-octet PERIOD dec-octet PERIOD dec-octet))
+
+(def h16 (compose "%s{1,4}" HEXDIG))
+
+(def ls32 (compose "(?:%s%s%s|%s)" h16 COLON h16 IPv4address))
+
+;; For ease of debugging
+;; 6( h16 ":" ) ls32
+(def IPv6-1 (compose "(?:%s:){6}%s" h16 ls32))
+
+;; "::" 5( h16 ":" ) ls32
+(def IPv6-2 (compose "::(?:%s:){5}%s" h16 ls32))
+
+;; [ h16 ] "::" 4( h16 ":" ) ls32
+(def IPv6-3 (compose "%s?::(?:%s:){4}%s" h16 h16 ls32))
+
+;; [ *1( h16 ":" ) h16 ] "::" 3( h16 ":" ) ls32
+(def IPv6-4 (compose "(?:(?:%s:){0,1}%s)?::(?:%s:){3}%s" h16 h16 h16 ls32))
+
+;; [ *2( h16 ":" ) h16 ] "::" 2( h16 ":" ) ls32
+(def IPv6-5 (compose "(?:(?:%s:){0,2}%s)?::(?:%s:){2}%s" h16 h16 h16 ls32))
+
+;; [ *3( h16 ":" ) h16 ] "::" h16 ":" ls32
+(def IPv6-6 (compose "(?:(?:%s:){0,3}%s)?::%s:%s" h16 h16 h16 ls32))
+
+;; [ *4( h16 ":" ) h16 ] "::" ls32
+(def IPv6-7 (compose "(?:(?:%s:){0,4}%s)?::%s" h16 h16 ls32))
+
+;; [ *5( h16 ":" ) h16 ] "::" h16
+(def IPv6-8 (compose "(?:(?:%s:){0,5}%s)?::%s" h16 h16 h16))
+
+;; [ *6( h16 ":" ) h16 ] "::"
+(def IPv6-9 (compose "(?:(?:%s:){0,6}%s)?::" h16 h16))
+
+(def IPv6address
+  (compose
+   "(?:%s|%s|%s|%s|%s|%s|%s|%s|%s)"
+   IPv6-1 IPv6-2 IPv6-3 IPv6-4 IPv6-5 IPv6-6 IPv6-7 IPv6-8 IPv6-9))
+
+(def gen-delims [\: \/ \? \# \[ \] \@])
+
+(def unreserved (concat ALPHA DIGIT [\- \. \_ \~]))
+
+(def sub-delims [\! \$ \& \' \( \) \* \+ \, \; \=])
+
+(def IPvFuture (compose "v[%s]+%s(?:%s|%s|%s)+" HEXDIG PERIOD unreserved sub-delims COLON))
+
+(def IP-literal (compose "%s(?:%s|%s)%s" \[ IPv6address IPvFuture \]))
 
 (def scheme (compose "%s[%s]*" ALPHA (set (concat ALPHA DIGIT [\+ \- \.]))))
 
-(as-regex-str ALPHA)
-(re-pattern (as-regex-str (set (concat ALPHA DIGIT [\+ \- \.]))))
+(def pct-encoded (concatenate \% HEXDIG HEXDIG))
 
-(identity scheme)
+(def userinfo (compose "(?<userinfo>(?:%s|%s|%s|%s)*)" unreserved pct-encoded sub-delims ":"))
 
-(comment
-  (re-matches scheme "http+"))
+(def reg-name (compose "(?:%s|%s|%s)*" unreserved pct-encoded sub-delims))
 
-(re-matches scheme "http+")
+(def host (compose "(?<host>%s|%s|%s)" IP-literal IPv4address reg-name))
 
+(def port (compose "(?<port>(?:%s)*)" DIGIT))
+
+(def authority (compose (str "(?<authority>" (str "(?:%s@)?" "(?:%s)" "(?:%s%s)?") ")") userinfo host COLON port))
+
+(def segment (compose "(?:%s|%s|%s|%s|%s)*" unreserved pct-encoded sub-delims \: \@))
+(def segment-nz (compose "(?:%s|%s|%s|%s|%s)+" unreserved pct-encoded sub-delims \: \@))
+(def segment-nz-nc (compose "(?:%s|%s|%s|%s)+" unreserved pct-encoded sub-delims \@))
+
+(def path-abempty (compose "(?<path>(?:/%s)*)" segment))
+(def path-absolute (compose "/%s(?:/%s)*" segment-nz segment))
+(def path-noscheme (compose "%s(?:/%s)*" segment-nz-nc segment))
+(def path-rootless (compose "%s(?:/%s)*" segment-nz segment))
+(def path-empty "")
+
+(def hier-part (compose "(?://%s%s|%s|%s|%s)" authority path-abempty path-absolute path-rootless path-empty))
+
+(def pchar (compose "(?:%s|%s|%s|%s|%s)" unreserved pct-encoded sub-delims \: \@))
+
+(def query (compose "(?:%s|%s|%s)*" pchar \/ \?))
+
+(def fragment (compose "(?:%s|%s|%s)*" pchar \/ \?))
+
+(def URI (compose "(?<scheme>%s):(?:%s)(?:%s(?<query>%s))?(?:#(?<fragment>%s))?" scheme hier-part QUESTION-MARK query fragment))
+
+(def relative-part (compose "(?://%s%s|%s|%s|%s)"
+                             authority path-abempty path-absolute
+                             path-noscheme path-empty))
+
+(def relative-ref (compose "%s(?:%s(?<query>%s))?(?:#(?<fragment>%s))?" relative-part QUESTION-MARK query fragment))
 
 ;; RFC 3987
-
-;; Note don't yet declare the whole uscchar range as defined in RFC
-;; 3987.
-
-;; [\x{1D400}-\x{1D419}]
-
 
 (def ucschar
   (set (concat (int-range 0xA0 0xD7FF)
@@ -250,28 +330,11 @@
 
 (def iunreserved (concat ALPHA DIGIT [\- \. \_ \~] ucschar))
 
-(def pct-encoded (concatenate \% HEXDIG HEXDIG))
-
-(def gen-delims [\: \/ \? \# \[ \] \@])
-
-(def sub-delims [\! \$ \& \' \( \) \* \+ \, \; \=])
-
 (def iuserinfo (compose "(?<userinfo>(?:%s|%s|%s|%s)*)" iunreserved pct-encoded sub-delims ":"))
 
 (def ireg-name (compose "(?:%s|%s|%s)*" iunreserved pct-encoded sub-delims))
 
-(def dec-octet (compose "(?:%s|%s|%s|%s|%s)"
-                        DIGIT
-                        (concatenate (int-range 0x31 0x39) DIGIT)
-                        (concatenate \1 DIGIT DIGIT)
-                        (concatenate \2 (int-range 0x30 0x34) DIGIT)
-                        (concatenate \2 \5 (int-range 0x30 0x35))))
-
-(def IPv4address (compose "%s%s%s%s%s%s%s" dec-octet PERIOD dec-octet PERIOD dec-octet PERIOD dec-octet))
-
-(def ihost (compose "(?<host>%s|%s)" IPv4address ireg-name)) ;; missing IP-literal for simplification
-
-(def port (compose "(?<port>(?:%s)*)" DIGIT))
+(def ihost (compose "(?<host>%s|%s|%s)" IP-literal IPv4address ireg-name))
 
 (def iauthority (compose (str "(?<authority>"
                               (str "(?:%s@)?"
@@ -292,6 +355,7 @@
 
 (def ihier-part (compose "(?://%s%s|%s|%s|%s)" iauthority ipath-abempty ipath-absolute ipath-rootless ipath-empty))
 
+
 (def iprivate (concat (int-range 0xE000 0xF8FF)
                       ;;(int-range 0xF0000 0xFFFFD)
                      ;;(int-range 0x100000 0x10FFFD)
@@ -304,13 +368,6 @@
 
 
 (def IRI (compose "(?<scheme>%s):(?:%s)(?:%s(?<query>%s))?(?:#(?<fragment>%s))?" scheme ihier-part QUESTION-MARK iquery ifragment))
-
-#_(re-matches irelative-ref "//ƒøø.ßår/?∂éœ=πîx#πîüx")
-#_(re-matches irelative-ref "//foo.bar/?u=nix#fo")
-#_(re-matches irelative-part "//foo.bar/")
-#_(re-matches irelative-part "//ƒøø.ßår/")
-
-#_(re-matches irelative-part "app")
 
 (def irelative-part (compose "(?://%s%s|%s|%s|%s)"
                              iauthority ipath-abempty ipath-absolute
