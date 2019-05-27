@@ -335,19 +335,19 @@
 (defmethod check-format "idn-email" [fmt schema instance]
   (when (string? instance)
     ;; TODO: Improve this regex: RFC6531
-    (when-not (re-matches #".*@.*" instance)
+    (when-not (re-matches regex/addr-spec instance)
       [{:message "Doesn't match idn-email format"}])))
 
 (defmethod check-format "hostname" [fmt schema instance]
   (when (string? instance)
     ;; TODO: Improve this regex: RFC 1034
-    (when-not (re-matches #".*" instance)
+    (when-not (re-matches regex/reg-name instance)
       [{:message "Doesn't match hostname format"}])))
 
 (defmethod check-format "idn-hostname" [fmt schema instance]
   (when (string? instance)
     ;; TODO: Improve this regex: RFC 5890
-    (when-not (re-matches #".*" instance)
+    (when-not (re-matches regex/ireg-name instance)
       [{:message "Doesn't match idn-hostname format"}])))
 
 (defmethod check-format "ipv4" [fmt schema instance]
@@ -396,8 +396,8 @@
 
 (defmethod check-format "json-pointer" [fmt schema instance]
   (when (string? instance)
-    ;; TODO: Improve this regex: RFC6901
-    (when-not (re-matches #".*" instance)
+    ;; RFC6901
+    (when-not (re-matches regex/json-pointer instance)
       [{:message "Doesn't match json-pointer format"}])))
 
 (defmethod check-format "relative-json-pointer" [fmt schema instance]

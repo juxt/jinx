@@ -400,3 +400,17 @@
 
 (comment
   (re-matches addr-spec "mal@juxt.pro"))
+
+;; RFC 6901: JavaScript Object Notation (JSON) Pointer
+
+(def unescaped (concat (int-range 0x00 0x2E)
+                       (int-range 0x30 0x7D)
+                       ;; Should be this:
+                       #_(int-range 0x7F 0x10FFFF)
+                       ;; but too slow, so do this instead for now:
+                       (int-range 0x7F 0xFFFF)))
+
+
+(def referenced-token (compose "(?:[%s]|~0|~1)*" unescaped))
+
+(def json-pointer (compose "(?:/%s)*" referenced-token))
