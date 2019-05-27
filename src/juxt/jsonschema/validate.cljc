@@ -402,8 +402,7 @@
 
 (defmethod check-format "relative-json-pointer" [fmt schema instance]
   (when (string? instance)
-    ;; TODO: Improve this regex: [relative-json-pointer]
-    (when-not (re-matches #".*" instance)
+    (when-not (re-matches regex/relative-json-pointer instance)
       [{:message "Doesn't match relative-json-pointer format"}])))
 
 (defmethod check-format "regex" [fmt schema instance]

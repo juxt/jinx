@@ -414,3 +414,8 @@
 (def referenced-token (compose "(?:[%s]|~0|~1)*" unescaped))
 
 (def json-pointer (compose "(?:/%s)*" referenced-token))
+
+;; draft-handrews-relative-json-pointer-01
+(def non-negative-integer (compose "(?:%s|%s%s*)" \0 (int-range \1 \9) (int-range \0 \9)))
+
+(def relative-json-pointer (compose "%s(?:#|%s)" non-negative-integer json-pointer))
