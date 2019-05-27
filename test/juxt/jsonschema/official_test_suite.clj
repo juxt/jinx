@@ -91,16 +91,13 @@
 
 (let [test
       {:filename
-       "/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/optional/content.json",
-       :test-group-description
-       "validation of binary-encoded media type documents",
-       :test-description "a valid base64-encoded JSON document",
-       :schema
-       {"contentMediaType" "application/json",
-        "contentEncoding" "base64"},
-       :data "eyJmb28iOiAiYmFyIn0K",
-       :valid true,
-       :failures [{:message "Instance is not application/json"}]}]
+       "/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/optional/format/iri-reference.json",
+       :test-group-description "validation of IRI References",
+       :test-description "an invalid IRI Reference",
+       :schema {"format" "iri-reference"},
+       :data "\\\\WINDOWS\\filëßåré",
+       :valid false,
+       :failures [{:message "Incorrectly judged valid"}]}]
 
   (validate
    (schema/schema (:schema test))

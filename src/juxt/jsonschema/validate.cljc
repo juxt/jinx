@@ -11,6 +11,7 @@
    [juxt.jsonschema.jsonpointer :as jsonpointer]
    [juxt.jsonschema.schema :as schema]
    [juxt.jsonschema.resolve :as resolv]
+   [juxt.jsonschema.regex :as regex]
    [lambdaisland.uri :as uri]))
 
 (declare validate*)
@@ -328,8 +329,7 @@
 
 (defmethod check-format "email" [fmt schema instance]
   (when (string? instance)
-    ;; TODO: Improve this regex: RFC 5322 section 3.4.1
-    (when-not (re-matches #".*@.*" instance)
+    (when-not (re-matches regex/addr-spec instance)
       [{:message "Doesn't match email format"}])))
 
 (defmethod check-format "idn-email" [fmt schema instance]
