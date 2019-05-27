@@ -352,7 +352,7 @@
 
 (defmethod check-format "ipv4" [fmt schema instance]
   (when (string? instance)
-    ;; TODO: Improve this regex: RFC2673
+    ;; TODO: Improve this regex: RFC2673, section 3.2, dotted-quad
     (when-not (re-matches #".*" instance)
       [{:message "Doesn't match ipv4 format"}])))
 
