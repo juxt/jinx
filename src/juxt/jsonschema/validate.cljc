@@ -411,8 +411,13 @@
       ;; (This might be cheating just to get past the test suite)
       (.contains instance "\\Z")
       [{:message "Must not contain \\Z anchor from .NET"}]
-      ;; TODO: Add more cases
-      )))
+
+      :else
+      (try
+        (re-pattern instance)
+        []
+        (catch Exception e
+          [{:message "Illegal regex"}])))))
 
 (defmethod check-assertion "format" [_ format schema instance doc options]
   ;; TODO: This is optional, so should be possible to disable via
