@@ -195,6 +195,39 @@
 (def PERIOD 0x2E)
 
 
+;; RFC 1034, Section 3.1: Name space specifications and terminology
+
+(def ldh-str (compose "%s*" (concat ALPHA DIGIT [\-])))
+
+(def label (compose "%s(?:%s?%s)?" ALPHA ldh-str (concat ALPHA DIGIT)))
+
+(def subdomain (compose "%s(?:%s%s)*" label PERIOD label))
+
+(defn hostname? [s]
+  (and
+   (re-matches subdomain s)
+   ;; "Labels must be 63 characters or less." -- RFC 1034, Section 3.5
+   (<= (apply max (map count (str/split s #"\."))) 63)
+   ;; "To simplify implementations, the total number of octets that
+   ;; represent a domain name (i.e., the sum of all label octets and
+   ;; label lengths) is limited to 255." -- RFC 1034, Section 3.1
+   (<= (count s) 255)))
+
+(defn idn-hostname? [s]
+  (when-let [ace (try
+              (java.net.IDN/toASCII s)
+              (catch IllegalArgumentException e
+                ;; Catch an error indicating this is not valid
+                ;; idn-hostname
+                ))]
+    (and
+     ;; Ensure no illegal chars
+     (empty? (set/intersection (set (seq s))
+                               #{\u302E ; Hangul single dot tone mark
+                                 }))
+     ;; Ensure ASCII version is a valid hostname
+     (hostname? ace))))
+
 ;; RFC 3986, Appendix A. Collected ABNF for URI
 
 (def dec-octet (compose "(?:%s|%s|%s|%s|%s)"
@@ -419,3 +452,6 @@
 (def non-negative-integer (compose "(?:%s|%s%s*)" \0 (int-range \1 \9) (int-range \0 \9)))
 
 (def relative-json-pointer (compose "%s(?:#|%s)" non-negative-integer json-pointer))
+
+
+;; RFC 6570: URI Template

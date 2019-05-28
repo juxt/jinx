@@ -340,14 +340,14 @@
 
 (defmethod check-format "hostname" [fmt schema instance]
   (when (string? instance)
-    ;; TODO: Improve this regex: RFC 1034
-    (when-not (re-matches regex/reg-name instance)
+    ;; RFC 1034
+    (when-not (regex/hostname? instance)
       [{:message "Doesn't match hostname format"}])))
 
 (defmethod check-format "idn-hostname" [fmt schema instance]
   (when (string? instance)
-    ;; TODO: Improve this regex: RFC 5890
-    (when-not (re-matches regex/ireg-name instance)
+    ;; RFC 5890
+    (when-not (regex/idn-hostname? instance)
       [{:message "Doesn't match idn-hostname format"}])))
 
 (defmethod check-format "ipv4" [fmt schema instance]

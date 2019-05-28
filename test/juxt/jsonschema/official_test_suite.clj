@@ -97,16 +97,22 @@
 ;; failing 21
 ;; failing 10
 ;; failing 9
+;; failing 7
+;; failing 6
+;; failing 4
+;; failing 3
 
 (let [test
       {:filename
-       "/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/optional/format/iri.json",
-       :test-group-description "validation of IRIs",
-       :test-description "a valid IRI based on IPv6",
-       :schema {"format" "iri"},
-       :data "http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]",
-       :valid true,
-       :failures [{:message "Doesn't match IRI format"}]}]
+       "/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/optional/format/idn-hostname.json",
+       :test-group-description
+       "validation of internationalized host names",
+       :test-description
+       "illegal first char U+302E Hangul single dot tone mark",
+       :schema {"format" "idn-hostname"},
+       :data "〮실례.테스트",
+       :valid false,
+       :failures [{:message "Incorrectly judged valid"}]}]
 
   (validate
    (schema/schema (:schema test))
@@ -118,3 +124,6 @@
        (fn [match]
          (io/file (io/file TESTS-ROOT "remotes") (second match))
          )}]]}))
+
+
+#_(format "%X" (int \-))
