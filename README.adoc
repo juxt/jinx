@@ -34,18 +34,16 @@ incompatible changes ahead.
 
 Most core features are working but there is more work yet to do:
 
-* Format validation
 * Annotation gathering
 * Improved Error messages
 * The schema-path and data-path values on failures
 * Relative json-pointer
 
-== Testing
-
 This library is tested with the official
 https://github.com/json-schema-org/JSON-Schema-Test-Suite[JSON-Schema-Test-Suite].
 
-Currently, all 490 non-optional tests pass.
+Currently, 631 of the 633 official optional and non-optional tests
+pass. Failing tests include support for uri-template and idn-email.
 
 == Schemas
 

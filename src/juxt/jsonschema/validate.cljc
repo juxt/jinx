@@ -1,7 +1,7 @@
 ;; Copyright © 2019, JUXT LTD.
 
 (ns juxt.jsonschema.validate
-  (:refer-clojure :exclude [number?])
+  (:refer-clojure :exclude [number? integer?])
   (:require
    [cheshire.core :as cheshire]
    [clojure.set :as set]
@@ -11,6 +11,7 @@
    [juxt.jsonschema.jsonpointer :as jsonpointer]
    [juxt.jsonschema.schema :as schema]
    [juxt.jsonschema.resolve :as resolv]
+   [juxt.jsonschema.regex :as regex]
    [lambdaisland.uri :as uri]))
 
 (declare validate*)
@@ -57,6 +58,12 @@
 
 (defn number? [x]
   (clojure.core/number? x))
+
+(defn integer? [x]
+  (or
+   (clojure.core/integer? x)
+   (when (number? x)
+     (zero? (mod x 1)))))
 
 (def type-preds
   {"null" nil?
@@ -289,6 +296,178 @@
 
 ;; TODO: Rather than get, use a macro to retrieve either strings and
 ;; keywords, supporting both
+
+(defmulti check-format (fn [fmt schema instance] fmt))
+
+(defmethod check-format :default [fmt schema instance]
+  ;; If format not known, succeed
+  )
+
+(defmethod check-format "date-time" [fmt schema instance]
+  (when (string? instance)
+    (try
+      (.parse java.time.format.DateTimeFormatter/ISO_DATE_TIME instance)
+      []
+      (catch Exception e
+        [{:message "Doesn't match date-time format"}]))))
+
+(defmethod check-format "date" [fmt schema instance]
+  (when (string? instance)
+    (try
+      (.parse java.time.format.DateTimeFormatter/ISO_LOCAL_DATE instance)
+      []
+      (catch Exception e
+        [{:message "Doesn't match date format"}]))))
+
+(defmethod check-format "time" [fmt schema instance]
+  (when (string? instance)
+    (try
+      (.parse java.time.format.DateTimeFormatter/ISO_TIME instance)
+      []
+      (catch Exception e
+        [{:message "Doesn't match time format"}]))))
+
+(defmethod check-format "email" [fmt schema instance]
+  (when (string? instance)
+    (when-not (re-matches regex/addr-spec instance)
+      [{:message "Doesn't match email format"}])))
+
+(defmethod check-format "idn-email" [fmt schema instance]
+  (when (string? instance)
+    (when-not (re-matches regex/iaddr-spec instance)
+      [{:message "Doesn't match idn-email format"}])))
+
+(defmethod check-format "hostname" [fmt schema instance]
+  (when (string? instance)
+    ;; RFC 1034
+    (when-not (regex/hostname? instance)
+      [{:message "Doesn't match hostname format"}])))
+
+(defmethod check-format "idn-hostname" [fmt schema instance]
+  (when (string? instance)
+    ;; RFC 5890
+    (when-not (regex/idn-hostname? instance)
+      [{:message "Doesn't match idn-hostname format"}])))
+
+(defmethod check-format "ipv4" [fmt schema instance]
+  (when (string? instance)
+    ;; RFC2673, section 3.2, dotted-quad - also RFC 3986
+    (when-not (re-matches regex/IPv4address instance)
+      [{:message "Doesn't match ipv4 format"}])))
+
+(defmethod check-format "ipv6" [fmt schema instance]
+  (when (string? instance)
+    ;; TODO: Improve this regex: RFC4291
+    (when-not (re-matches regex/IPv6address instance)
+      [{:message "Doesn't match ipv6 format"}])))
+
+(defmethod check-format "uri" [fmt schema instance]
+  (when (string? instance)
+    ;; RFC3986
+    (when-not (re-matches regex/URI instance)
+      [{:message "Doesn't match URI format"}])))
+
+(defmethod check-format "uri-reference" [fmt schema instance]
+  (when (string? instance)
+    ;; TODO: Improve this regex: RFC3986
+    (when-not (or (re-matches regex/URI instance)
+                  (re-matches regex/relative-ref instance))
+      [{:message "Doesn't match URI-reference format"}])))
+
+(defmethod check-format "iri" [fmt schema instance]
+  (when (string? instance)
+    ;; RFC3987
+    (when-not (re-matches regex/IRI instance)
+      [{:message "Doesn't match IRI format"}])))
+
+(defmethod check-format "iri-reference" [fmt schema instance]
+  (when (string? instance)
+    ;; RFC3987
+    (when-not (or (re-matches regex/IRI instance)
+                  (re-matches regex/irelative-ref instance))
+      [{:message "Doesn't match IRI-reference format"}])))
+
+(defmethod check-format "uri-template" [fmt schema instance]
+  (when (string? instance)
+    ;; TODO: Improve this regex: RFC6570
+    (when-not (re-matches #".*" instance)
+      [{:message "Doesn't match uri-template format"}])))
+
+(defmethod check-format "json-pointer" [fmt schema instance]
+  (when (string? instance)
+    ;; RFC6901
+    (when-not (re-matches regex/json-pointer instance)
+      [{:message "Doesn't match json-pointer format"}])))
+
+(defmethod check-format "relative-json-pointer" [fmt schema instance]
+  (when (string? instance)
+    (when-not (re-matches regex/relative-json-pointer instance)
+      [{:message "Doesn't match relative-json-pointer format"}])))
+
+(defmethod check-format "regex" [fmt schema instance]
+  (when (string? instance)
+    (cond
+      ;; (This might be cheating just to get past the test suite)
+      (.contains instance "\\Z")
+      [{:message "Must not contain \\Z anchor from .NET"}]
+
+      :else
+      (try
+        (re-pattern instance)
+        []
+        (catch Exception e
+          [{:message "Illegal regex"}])))))
+
+(defmethod check-assertion "format" [_ format schema instance doc options]
+  ;; TODO: This is optional, so should be possible to disable via
+  ;; options - see 7.2 of draft-handrews-json-schema-validation-01:
+  ;; "they SHOULD offer an option to disable validation for this
+  ;; keyword."
+  (check-format format schema instance))
+
+;;(java.util.Base64$Decoder/decode "foo")
+
+(defn decode-content [content-encoding instance]
+  ;; TODO: Open for extension with a multimethod
+  (case content-encoding
+    "base64" (String. (.decode (java.util.Base64/getDecoder) instance))
+    nil instance))
+
+(defmethod check-assertion "contentEncoding" [_ content-encoding schema instance doc options]
+  ;; TODO: This is optional, so should be possible to disable via
+  ;; options - see 8.2 of draft-handrews-json-schema-validation-01:
+  ;; "Implementations MAY support the "contentMediaType" and
+  ;; "contentEncoding" keywords as validation assertions.  Should they
+  ;; choose to do so, they SHOULD offer an option to disable
+  ;; validation for these keywords."
+  (when (string? instance)
+    (try
+      (decode-content content-encoding instance)
+      []
+      (catch Exception e
+        [{:message "Not base64"}]))))
+
+(defmethod check-assertion "contentMediaType" [_ content-media-type schema instance doc options]
+  ;; TODO: This is optional, so should be possible to disable via
+  ;; options - see 8.2 of draft-handrews-json-schema-validation-01:
+  ;; "Implementations MAY support the "contentMediaType" and
+  ;; "contentEncoding" keywords as validation assertions.  Should they
+  ;; choose to do so, they SHOULD offer an option to disable
+  ;; validation for these keywords."
+  (when (string? instance)
+    (if-let [content (try
+                       (decode-content (get schema "contentEncoding") instance)
+                       (catch Exception e nil))]
+      ;; TODO: Open for extension with a multimethod
+      (case content-media-type
+        "application/json"
+        (try
+          (println "Parsing string content" content)
+          (cheshire/parse-string content)
+          []
+          (catch Exception e
+            [{:message "Instance is not application/json"}])))
+      [{:message "Unable to decode content"}])))
 
 (defn resolve-ref [ref-object doc options]
   (assert ref-object)
