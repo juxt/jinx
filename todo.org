@@ -44,8 +44,20 @@ file:/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/
 * DONE Fix refs tests errors/failures
 ** DONE Load schemas, validate them according to themselves, find internal $ids
 
-* TODO Recursion protection (use schema-path visited hash-set)
+* DONE Download specs
+- [X] RFC 1035
+- [X] RFC 1123
+- [X] RFC 5321
+- [X] RFC 1034
+- [X] RFC 2673
+- [X] RFC 3986
+- [X] RFC 3987
+- [X] RFC 4291
+- [X] RFC 5322
+- [X] RFC 5890
+- [X] RFC 6531
 * TODO [#B] 7. Semantic Validation With "format"
+* TODO Recursion protection (use schema-path visited hash-set)
 * TODO [#C] 8. String-Encoding Non-JSON Data
 * TODO [#C] 9. Schema Re-Use With "definitions"
 * TODO [#C] 10. Schema Annotations
