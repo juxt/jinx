@@ -1,6 +1,6 @@
 ;; Copyright © 2019, JUXT LTD.
 
-(ns juxt.jsonschema.official-test-suite
+(ns juxt.jsonschema.official-test
   (:require
    [cheshire.core :as json]
    [clojure.java.io :as io]
@@ -8,6 +8,7 @@
    [juxt.jsonschema.schema :refer [schema]]
    [juxt.jsonschema.resolve :as resolv]
    [clojure.set :as set]
+   [clojure.test :as test]
    [juxt.jsonschema.schema :as schema]
    [cheshire.core :as cheshire]))
 
@@ -19,7 +20,7 @@
   (try
     (let [schema (schema/schema schema)
           result (validate
-                  schema data
+                  data schema
                   {:resolvers
                    [::resolv/built-in
                     [::resolv/default-resolver
@@ -27,11 +28,11 @@
                       (fn [match]
                         (io/file (io/file TESTS-ROOT "remotes") (second match))
                         )}]]})
-          success? (if valid (empty? result)
-                       (not (empty? result)))]
+          success? (if valid (:valid? result)
+                       (not (:valid? result)))]
       (cond-> test
         success? (assoc :result :success)
-        (and (not success?) valid) (assoc :failures (vec result))
+        (and (not success?) valid) (assoc :failures (:error result))
         (and (empty? result) (not valid)) (assoc :failures [{:message "Incorrectly judged valid"}])))
     (catch Throwable e (merge test {:result :error
                                     :error e}))))
@@ -63,70 +64,20 @@
      :data data
      :valid valid}))
 
-(comment
-  "Run tests, show failures"
-  (let [t0 (System/nanoTime)
-        results
-        (->> (tests TESTS-DIR)
-             (map test-jsonschema))
-        failing (remove success? results)]
+;; TODO: Pull out defaults and refs from validation keywords - this is
+;; premature abstraction
 
-    {:total-run (count results)
-     :duration (format "%s ms" (float (/ (- (System/nanoTime) t0) 1000000)))
-     :passing (count (filter success? results))
-     :pass-rate (format "%f%%" (float (* 100 (/ (count (filter success? results)) (count results)))))
-     :failing (count failing)
-     :failure-detail failing}))
+(defn exclude-test? [test]
+  (contains?
+   #{"format: uri-template"
+     "validation of an internationalized e-mail addresses"}
+   (:test-group-description test)))
 
-;; failing 58
-;; failing 56
-;; failing 52
-;; failing 50
-;; failing 49
-;; failing 48
-;; failing 47
-;; failing 46
-;; failing 45
-;; failing 44
-;; failing 43
-;; failing 42
-;; failing 40
-;; failing 38
-;; failing 35
-;; failing 33
-;; failing 27
-;; failing 25
-;; failing 21
-;; failing 10
-;; failing 9
-;; failing 7
-;; failing 6
-;; failing 4
-;; failing 3
-;; failing 2
+(defn make-tests []
+  (doseq [test (remove exclude-test? (tests TESTS-DIR))]
+    (let [testname (symbol (str (gensym "test") "-test"))]
+      (eval `(test/deftest ~testname
+               (test/testing ~(:test-description test)
+                 (test/is (success? (test-jsonschema ~test)))))))))
 
-(let [test
-      {:filename
-       "/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/optional/format/idn-hostname.json",
-       :test-group-description
-       "validation of internationalized host names",
-       :test-description
-       "illegal first char U+302E Hangul single dot tone mark",
-       :schema {"format" "idn-hostname"},
-       :data "〮실례.테스트",
-       :valid false,
-       :failures [{:message "Incorrectly judged valid"}]}]
-
-  (validate
-   (schema/schema (:schema test))
-   (:data test)
-   {:resolvers
-    [::resolv/built-in
-     [::resolv/default-resolver
-      {#"http://localhost:1234/(.*)"
-       (fn [match]
-         (io/file (io/file TESTS-ROOT "remotes") (second match))
-         )}]]}))
-
-
-#_(format "%X" (int \-))
+(make-tests)

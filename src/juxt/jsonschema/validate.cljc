@@ -25,14 +25,11 @@
 (defn schema? [x]
   (or (object? x) (boolean? x)))
 
-(defn valid? [x]
-  (not (seq x)))
-
 ;; All references here relate to
 ;; draft-handrews-json-schema-validation-01.txt unless otherwise
 ;; stated.
 
-(defmulti check-assertion
+(defmulti process-keyword
   "Allow for additional vocabularies by making this extensible.
 
   'Validation keywords typically operate independently, without
@@ -40,18 +37,56 @@
 
   However, given there are some exceptions, the full schema object is
   also provided as a map.
-  "
-  ;; TODO: Document reason for 'schema' (to pull out additionalProperties, etc.)
-  (fn [keyword value schema instance doc options]
-    keyword))
 
-(defmethod check-assertion :default [k type schema instance doc options]
+  The instance arg is the latest version of the instance currently
+  established, not (necessarily) the original data value.
+  "
+  (fn [keyword value instance ctx] keyword))
+
+(defmethod process-keyword :default [k value instance ctx]
   ;; A JSON Schema MAY contain properties which are not schema
   ;; keywords. Unknown keywords SHOULD be ignored. -- JSON Schema Core, 4.3.1
   ;;
   ;; Do not error if a method for a given keyword isn't defined, so we
   ;; return nil.
   nil)
+
+;; TODO: Actually we need to use find or contains, because we're also
+;; interested in nils
+(defn some-some?
+  "We need a version of some that treats false as a value"
+  [pred coll]
+    (when-let [s (seq coll)]
+      (if-some [i (pred (first s))] i (recur pred (next s)))))
+
+(defn peek-through [ctx kw]
+  (some-some? kw (:acc ctx)))
+
+;; We test against the instance first. We try to solve (via defaults)
+;; and build up the instantiation, and possibly explain our actions
+;; via the journal. If we can't solve, we throw errors. Errors are
+;; fatal.
+
+(defmethod process-keyword "title" [k title instance ctx]
+  (when (string? title)
+    {:annotation {:title title}}))
+
+(defmethod process-keyword "description" [k description instance ctx]
+  (when (string? description)
+    {:annotation {:description description}}))
+
+(defmethod process-keyword "default" [k default instance ctx]
+  (let [instance (peek-through ctx :instance)]
+    (merge
+     {:annotation {:default default}}
+     (if-not (some? instance)
+       {:instance default
+        :default-used? true
+        }))))
+
+(defmethod process-keyword "examples" [k examples instance ctx]
+  (when (array? examples)
+    {:annotation {:examples examples}}))
 
 ;; TODO: These must check against JavaScript primitive types,
 ;; not Clojure/Java ones
@@ -74,358 +109,569 @@
    "string" string?
    "integer" integer?})
 
-(defmethod check-assertion "type" [_ type schema instance doc options]
-  (cond
-    (string? type)
-    (when-not ((type-preds type) instance)
-      [{:message (format "Value must be of type %s" type)}])
-    (array? type)
-    (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
-      [{:message (format "Value must be of type %s" (str/join " or " type))}])))
 
-(defmethod check-assertion "enum" [_ enum schema instance doc options]
+;; There is no instance, which means no default.
+
+;; As a recovery step, we will try to default the instance here.
+
+    ;; Note: recovery steps should be made optional via options,and
+    ;; possibly possible to override with multimethods.
+
+(defmethod process-keyword "type" [_ type _ ctx]
+  (let [instance (peek-through ctx :instance)]
+    (cond
+      (string? type)
+      (if-let [pred (get type-preds type)]
+        (when-not (pred instance)
+          ;; TODO: We have an error, but we should first try to coerce - e.g. string->number, number->string
+
+          {:error
+           {:message (format "Instance of %s is not of type %s"
+                             (pr-str instance)
+                             (pr-str type))
+            :instance instance
+            :type type}}
+
+
+          #_(if (and (nil? instance) (contains? #{"object" "array"} type))
+
+              ;; There is no instance, which means no default.
+
+              ;; As a recovery step, we will try to default the instance here.
+
+              ;; Note: recovery steps should be made optional via options,and
+              ;; possibly possible to override with multimethods.
+
+
+              (case type
+                "object" {:instance {}
+                          :note "Implied value"}
+                "array" {:instance []
+                         :note "Implied value"})
+
+              {:error {:message (format "Instance of %s is not of type %s" (pr-str instance) (pr-str type))
+                       :instance instance
+                       :type type}}))
+
+        ;; Nil pred
+        (throw (IllegalStateException. "Invalid schema detected")))
+
+      (array? type)
+      (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
+        ;; TODO: Find out _which_ type it matches, and instantiate _that_
+        {:error {:message (format "Value must be of type %s" (str/join " or " (pr-str type)))}}))
+
+
+    ))
+
+;; TODO: Pass schema-path (and data-path) in a 'ctx' arg, not options
+;; (keep 'options' constant). Demote 'doc' to 'ctx' entry, which
+;; should also contain 'base-uri'. Only do this refactoring once the tests are working.
+
+(defmethod process-keyword "enum" [k enum instance ctx]
   (when-not (contains? (set enum) instance)
-    [{:message (format "Value %s must be in enum %s" instance enum)}]))
+    {:error {:message (format "Value %s must be in enum %s" instance enum)}}))
 
-(defmethod check-assertion "const" [_ const schema instance doc options]
+(defmethod process-keyword "const" [k const instance ctx]
   (when-not (= const instance)
-    [{:message (format "Value %s must be equal to const %s" instance const)}]))
+    {:error {:message (format "Value %s must be equal to const %s" instance const)}}))
 
-(defmethod check-assertion "multipleOf" [_ multiple-of schema instance doc options]
+(defmethod process-keyword "multipleOf" [k multiple-of instance ctx]
   (when (number? instance)
     (when-not
         #?(:clj (= 0 (.compareTo (.remainder (bigdec instance) (bigdec multiple-of)) BigDecimal/ZERO))
            :cljs [{:message "Not yet supported"}])
-      [{:message "Failed multipleOf check"}])))
+      {:error {:message "Failed multipleOf check"}})))
 
-(defmethod check-assertion "maximum" [_ maximum schema instance doc options]
+(defmethod process-keyword "maximum" [k maximum instance ctx]
   (when (number? instance)
     (when-not (<= instance maximum)
-      [{:message "Failed maximum check"}])))
+      {:error {:message "Failed maximum check"}})))
 
-(defmethod check-assertion "exclusiveMaximum" [_ exclusive-maximum schema instance doc options]
+(defmethod process-keyword "exclusiveMaximum" [k exclusive-maximum instance ctx]
   (when (number? instance)
     (when-not (< instance exclusive-maximum)
-      [{:message "Failed exclusiveMaximum check"}])))
+      {:error {:message "Failed exclusiveMaximum check"}})))
 
-(defmethod check-assertion "minimum" [_ minimum schema instance doc options]
+(defmethod process-keyword "minimum" [k minimum instance ctx]
   (when (number? instance)
     (when-not (>= instance minimum)
-      [{:message "Failed minimum check"}])))
+      {:error {:message "Failed minimum check"}})))
 
-(defmethod check-assertion "exclusiveMinimum" [_ exclusive-minimum schema instance doc options]
+(defmethod process-keyword "exclusiveMinimum" [k exclusive-minimum instance ctx]
   (when (number? instance)
     (when-not (> instance exclusive-minimum)
-      [{:message "Failed exclusiveMinimum check"}])))
+      {:error {:message "Failed exclusiveMinimum check"}})))
 
-(defmethod check-assertion "maxLength" [_ max-length schema instance doc options]
+(defmethod process-keyword "maxLength" [k max-length instance ctx]
   (when (string? instance)
     ;; See https://github.com/networknt/json-schema-validator/issues/4
     (when (> (.codePointCount instance 0 (.length instance)) max-length)
-      [{:message "String is too long"}])))
+      {:error {:message "String is too long"}})))
 
-(defmethod check-assertion "minLength" [_ min-length schema instance doc options]
+(defmethod process-keyword "minLength" [k min-length instance ctx]
   (when (string? instance)
     (when (<
            #?(:clj (.codePointCount instance 0 (.length instance))
               :cljs (count instance))
            min-length)
-      [{:message "String is too short"}])))
+      {:error {:message "String is too short"}})))
 
-(defmethod check-assertion "pattern" [_ pattern schema instance doc options]
+(defmethod process-keyword "pattern" [_ pattern instance ctx]
   (when (string? instance)
     (when-not (re-seq (re-pattern pattern) instance)
-      [{:message (format "String does not match pattern %s" pattern)}])))
+      {:error {:message (format "String does not match pattern %s" pattern)}})))
 
-;; TODO: Rename schema to subschema
 ;; TODO: Show paths in error messages
 ;; TODO: Improve error messages, possibly copying Ajv or org.everit json-schema
 
-(defmethod check-assertion "items" [_ items schema instance doc options]
-  (when (sequential? instance)
-    (cond
-      (object? items)
-      (->>
-       (for [[idx instance] (map-indexed vector instance)]
-         (validate* items instance doc (update options :schema-path (fnil conj []) idx)))
-       (mapcat set))
+(defmethod process-keyword "items" [_ items _ {:keys [schema state options] :as ctx}]
+  (let [instance (peek-through ctx :instance)]
+    (when (array? instance)
+      (cond
+        (object? items)
+        (let [children
+              (for [[idx child-instance] (map-indexed vector instance)]
+                (assoc (validate* child-instance items ctx)
+                       :index idx))]
+          (if (every? :valid? children)
+            {:items children}
+            {:error {:message "Not all items are valid"
+                     :bad-items (filter :errors children)}})
+          )
 
-      (boolean? items)
-      (when (and (false? items) (not-empty instance))
-        [{:message "Items must be empty to satisfy a false schema"}])
+        (boolean? items)
+        ;; TODO: Add a test for this
+        (when (and (false? items) (not-empty instance))
+          {:error {:message "Items must be empty to satisfy a false schema"}})
 
-      (array? items)
-      ;; TODO: Consider short-circuiting
-      (->>
-       (for [[idx schema instance] (map vector (range) (concat items (repeat (get schema "additionalItems"))) instance)]
-         (validate* schema instance doc (update options :schema-path (fnil conj []) idx)))
-       (mapcat seq)))))
+        (array? items)
+        (let [children
+              (for [[idx child-schema child-instance] (map vector (range) (concat items (repeat (get schema "additionalItems"))) instance)]
+                (assoc
+                 (validate* child-instance child-schema ctx)
+                 :index idx))]
+          (if (every? :valid? children)
+            {:items children}
+            {:error {:message "Not all items are valid"
+                     :bad-items (filter :errors children)}}))))))
 
-(defmethod check-assertion "maxItems" [_ max-items schema instance doc options]
+(defmethod process-keyword "maxItems" [k max-items instance ctx]
   (when (array? instance)
     (when (> (count instance) max-items)
-      [{:message "maxItems exceeded"}])))
+      {:error {:message "maxItems exceeded"}})))
 
-(defmethod check-assertion "minItems" [_ min-items schema instance doc options]
+(defmethod process-keyword "minItems" [k min-items instance ctx]
   (when (array? instance)
     (when (< (count instance) min-items)
-      [{:message "minItems not reached"}])))
+      {:error {:message "minItems not reached"}})))
 
-(defmethod check-assertion "uniqueItems" [_ unique-items? schema instance doc options]
+(defmethod process-keyword "uniqueItems" [k unique-items? instance ctx]
   (when (and (array? instance) unique-items?)
     (when-not (apply distinct? instance)
-      [{:message "Instance elements are not all unique"}])))
+      {:error {:message "Instance elements are not all unique"}})))
 
-(defmethod check-assertion "contains" [_ contains schema instance doc options]
+(defmethod process-keyword "contains" [k contains instance ctx]
   (when (array? instance)
-    ;; TODO: Beware of short-circuiting using 'some' (see 3.3.2)
-    (when-not (some #(empty? (validate* contains % doc options)) instance)
-      [{:message "Instance is not valid against schema"}])))
+    ;; Let annotations surface in other keywords
+    (let [results (map #(validate* % contains ctx) instance)]
+      (cond-> {:contains results}
+        (not (some :valid? results))
+        (assoc :error {:message "Instance is not valid against schema"})))))
 
-(defmethod check-assertion "maxProperties" [_ max-properties schema instance doc options]
+(defmethod process-keyword "maxProperties" [k max-properties instance ctx]
   (when (object? instance)
     (when-not (<= (count (keys instance)) max-properties)
-      [{:message "Max properties exceeded"}])))
+      {:error {:message "Max properties exceeded"}})))
 
-(defmethod check-assertion "minProperties" [_ min-properties schema instance doc options]
+(defmethod process-keyword "minProperties" [k min-properties instance ctx]
   (when (object? instance)
     (when-not (<= min-properties (count (keys instance)))
-      [{:message "Min properties not reached"}])))
+      {:error {:message "Min properties not reached"}})))
 
-(defmethod check-assertion "required" [_ required schema instance doc options]
+(defmethod process-keyword "required" [_ required instance {:keys [schema] :as ctx}]
   (when (object? instance)
-    (when-not (set/subset? (set required) (set (keys instance)))
-      [{:message "Missing required property"}])))
+    (let [results
+          (keep
+           (fn [kw]
+             (when-not (find instance kw)
+               {:error {:message "Required property not in object"
+                        :keyword kw}}))
+           required)]
 
-(defmethod check-assertion "properties" [_ properties schema instance doc options]
+      (when (not-empty results)
+        {:error {:message "Some required properties missing"
+                 :causes results}}
+
+        ;; Attempt to recover
+
+        ;; Note: recovery steps should be made optional via options,and
+        ;; possibly possible to override with multimethods.
+
+        (let [recovered-result
+              (reduce
+               (fn [acc result]
+                 (let [kw (get-in result [:error :keyword])
+                       prop (get-in schema ["properties" kw])
+                       attempt (when prop (when-let [defv (get prop "default")]
+                                            (validate* defv prop ctx)))]
+                   (if (:valid? attempt)
+                     (assoc-in acc [:instance kw] (:instance attempt))
+                     (update acc :causes (fnil conj []) (:error result)))))
+               {:instance instance}
+               results)]
+
+          (cond-> recovered-result
+            (:causes recovered-result) (assoc :error "One or more required properties not found in object")))))))
+
+(defmethod process-keyword "properties" [_ properties instance {:keys [state schema state options] :as ctx}]
   (when (object? instance)
-    (->>
-     (for [[k subschema] properties
-           :let [child-instance (get instance k)]
-           :when child-instance]
-       (validate* subschema child-instance doc (update options :schema-path (fnil conj []) "properties" k)))
-     (mapcat seq))))
+    (let [validations (for [[kw child] instance
+                            :let [subschema (get properties kw)]
+                            :when (some? subschema)
+                            :let [validation (validate* child subschema ctx)]]
+                        (assoc validation :keyword kw))
 
-(defmethod check-assertion "patternProperties" [_ pattern-properties schema instance doc options]
+          result (reduce
+                  (fn [acc result]
+                    (cond-> acc
+                      (not (:valid? result))
+                      (assoc-in [:causes (:keyword result)] (:errors result))))
+
+                  {:instance instance}
+                  validations)]
+
+      (when-let [causes (:causes result)]
+        {:error {:message "Some properties failed to validate against their schemas"
+                 :causes causes}})))
+
+  #_(when (object? instance)
+
+      (let [results
+            (into {}
+                  (for [[kw child] (merge
+                                    #_(:result-instance state) ; this is to fill out these
+                                    instance)
+                        :let [child (get instance kw)
+                              subschema (get properties kw)]]
+
+                    [kw
+                     (if subschema
+                       (-> (validate* subschema child (-> ctx
+                                                          (update :schema-path conj "properties" kw)
+                                                          (assoc :state {})))
+                           options)
+                       ;; else no subschema, this is an unknown property
+                       (if (get schema "additionalProperties")
+                         {:note "Unknown property not affecting validation"}
+                         {:error
+                          {:message (format "No additional properties allowed in this object: %s" kw)
+                           :keyword kw
+                           }}))]))]
+
+        {:state (-> state
+                    (assoc :properties results)
+                    #_(update :result-instance merge (into {} (for [[k v] results
+                                                                    :when (:valid? v)]
+                                                                [k (:result-instance v)])))
+                    (assoc :valid? (every? :valid? (vals results)))
+                    )})))
+
+(defmethod process-keyword "patternProperties" [k pattern-properties instance ctx]
   (when (object? instance)
     (let [compiled-pattern-properties (map (fn [[k v]] [(re-pattern k) v]) pattern-properties)]
-      (->>
-       (for [[propname child-instance] instance
-             [pattern subschema] compiled-pattern-properties
-             :when (re-seq pattern propname)]
-         (validate*
-          subschema
-          child-instance
-          doc
-          (update options :schema-path (fnil conj []) "patternProperties" (str pattern))))
-       (mapcat seq)))))
+      (let [children
+            (for [[propname child-instance] instance
+                  [pattern subschema] compiled-pattern-properties
+                  :when (re-seq pattern propname)
+                  :let [result (validate* child-instance subschema ctx)]
+                  :when (not (:valid? result))]
+              result)]
+        (when (not-empty children)
+          {:error
+           {:message "Matched pattern property's schema does not succeed"}})))))
 
-(defmethod check-assertion "additionalProperties" [_ additional-properties schema instance doc options]
+(defmethod process-keyword "additionalProperties" [k additional-properties instance {:keys [schema] :as ctx}]
   (when (object? instance)
     (let [properties (set (keys (get schema "properties")))
+          ;; TODO: This is wasteful, to recompile these pattern properties again
           compiled-patterns (when-let [pattern-properties (get schema "patternProperties")]
                               (map (fn [[k v]] (re-pattern k)) pattern-properties))]
-      (->>
-       (for [[propname child-instance] instance
-             :when (not (contains? properties propname))
-             :when (nil? (some #(re-seq % propname) compiled-patterns))]
-         (validate*
-          additional-properties
-          child-instance
-          doc
-          (update options :schema-path (fnil conj []) "additionalProperties")))
-       (mapcat seq)))))
+      (let [children
+            (for [[propname child-instance] instance
+                  :when (not (contains? properties propname))
+                  :when (nil? (some #(re-seq % propname) compiled-patterns))
+                  :let [result (validate* child-instance additional-properties ctx)]
+                  :when (not (:valid? result))]
+              result)]
+        (when (not-empty children) {:error
+                                    {:message "An additional property failed the schema check"
+                                     :causes children}})))))
 
-(defmethod check-assertion "dependencies" [_ dependencies schema instance doc options]
+(defmethod process-keyword "dependencies" [k dependencies instance ctx]
   (when (object? instance)
-    (->>
-     (for [[propname dvalue] dependencies]
-       (when (contains? instance propname)
-         (cond
-           (schema? dvalue)
-           (validate* dvalue instance doc options)
-           (array? dvalue)
-           (when-not (every? #(contains? instance %) dvalue)
-             [{:message "Not every dependency in instance"}]))))
-     (mapcat seq))))
+    (let [dependency-results
+          (for [[kw dvalue] dependencies
+                :when (contains? instance kw)]
+            (cond
+              (schema? dvalue)
+              (assoc (validate* instance dvalue ctx) :keyword kw)
+              ;; This is the array case, where we fake a validate*
+              ;; return value in order to make the reduce work below.
+              ;; TODO: Not ideal, should be re-worked.
+              (array? dvalue)
+              (let [missing (filter #(not (contains? instance %)) dvalue)]
+                (if (not-empty missing)
+                  {:errors [{:message "Not every dependency in instance"
+                             :missing missing}]}))))
+          result (reduce
+                  (fn [acc result]
+                    (if-let [errors (:errors result)]
+                      (assoc-in acc [:error :dependencies (:keyword result) :errors] errors)
+                      (if-some [instance (:instance result)]
+                        (update acc :instance merge instance)
+                        acc)))
 
-(defmethod check-assertion "propertyNames" [_ property-names schema instance doc options]
+                  {:instance instance
+                   :dependencies dependency-results}
+
+                  dependency-results)]
+      (cond-> result
+        (:error result)
+        (assoc-in [:error :message] "Some dependencies had validation errors")))
+
+
+    #_(let [children
+            (for [[propname dvalue] dependencies]
+              (when (contains? instance propname)
+                (cond
+                  (schema? dvalue)
+                  (validate* instance dvalue ctx)
+                  (array? dvalue)
+                  (when-not (every? #(contains? instance %) dvalue)
+                    {:dependency propname
+                     :errors [{:message "Not every dependency in instance"}]}))))]
+        (when (not-empty children)
+
+          (println "not empty children" children)
+          {:children children}))))
+
+(defmethod process-keyword "propertyNames" [k property-names instance ctx]
   (when (object? instance)
-    (->>
-     (for [propname (keys instance)]
-       (validate* property-names propname doc options))
-     (mapcat seq))))
+    (let [children
+          (for [propname (keys instance)]
+            (validate* propname property-names ctx))]
+      (when-not (every? :valid? children)
+        {:error "propertyNames"
+         :failures (filter (comp not :valid?) children)}))))
 
-(defmethod check-assertion "allOf" [_ all-of schema instance doc options]
-  (->>
-   (for [[subschema idx] (map vector all-of (range))
-         :let [failures (seq (validate* subschema instance doc (update options :schema-path (fnil conj []) "allOf" idx)))]
-         :when failures]
-     [{:message (format "allOf schema failed due to subschema at %s failing" idx)
-       :caused-by failures}])
-   (mapcat seq)))
+(defmethod process-keyword "allOf" [k all-of instance ctx]
+  (let [failures
+        (for [subschema all-of
+              :let [failure (validate* instance subschema ctx)]
+              :when (not (:valid? failure))]
+          failure)]
+    (when (not-empty failures)
+      {:error
+       {:message "allOf schema failed due to subschema failing"
+        :causes failures}})))
 
-(defmethod check-assertion "anyOf" [_ any-of schema instance doc options]
-  (when
-      (every? seq
-              (for [[subschema idx] (map vector any-of (range))]
-                (validate* subschema instance doc (update options :schema-path (fnil conj []) "anyOf" idx))))
-    [{:message "No schema validates for anyOf validation"}]))
+(defmethod process-keyword "anyOf" [k any-of instance ctx]
+  (let [results (for [[subschema idx] (map vector any-of (range))]
+                  (validate* instance subschema ctx))]
+    (cond-> {}
+      true
+      {:results results}
+      (not (some :valid? results))
+      (merge {:error {:message "No schema validates for anyOf validation"}}))))
 
-(defmethod check-assertion "oneOf" [_ one-of schema instance doc options]
-  (let [valids
-        (for [[subschema idx] (map vector one-of (range))
-              :when (not (seq (validate* subschema instance doc (update options :schema-path (fnil conj []) "oneOf" idx))))]
-          idx)]
+(defmethod process-keyword "oneOf" [k one-of instance ctx]
+  (let [validations
+        (doall
+         (for [subschema one-of]
+           (validate* instance subschema ctx)))
+        successes (filter :valid? validations)]
     (cond
-      (zero? (count valids))
-      [{:message "No schema validates in oneOf validation"}]
-      (not= 1 (count valids))
-      [{:message (format "Multiple schemas (%s) are valid in oneOf validation" (str/join ", " valids))}])))
+      (empty? successes)
+      {:error {:message "No schema succeeds in oneOf validation"
+               :failures validations}}
+      (> (count successes) 1)
+      {:error {:message "Multiple schemas are valid in oneOf validation"
+               :successes successes}}
 
-(defmethod check-assertion "not" [_ not schema instance doc options]
-  (when (valid? (validate* not instance doc (update options :schema-path (fnil conj []) "not")))
-    [{:message "Schema should not be valid"}]))
+      :else (first successes))))
 
-(defmethod check-assertion "if" [_ if schema instance doc options]
-  (if (valid? (validate* if instance doc (update options :schema-path (fnil conj []) "if")))
+(defmethod process-keyword "not" [k not instance ctx]
+  (when (:valid? (validate* instance not ctx))
+    {:error {:message "Schema should not be valid"}}))
+
+(defmethod process-keyword "if" [_ if instance {:keys [schema] :as ctx}]
+  (if (:valid? (validate* instance if ctx))
     (when-let [then (get schema "then")]
-      (validate* then instance doc (update options :schema-path (fnil conj []) "then")))
+      ;; TODO: validate* returns errors!
+      (let [result (validate* instance then ctx)]
+        (if (:valid? result)
+          result
+          {:error {:message "then clause does not succeed"
+                   :causes (:errors result)}})))
+
     (when-let [else (get schema "else")]
-      (validate* else instance doc (update options :schema-path (fnil conj []) "else")))))
+      ;; TODO: validate* returns errors!
+      (let [result (validate* instance else ctx)]
+        (if (:valid? result)
+          result
+          {:error {:message "else clause does not succeed"
+                   :causes (:errors result)}})))))
 
 ;; TODO: Rather than get, use a macro to retrieve either strings and
 ;; keywords, supporting both
 
-(defmulti check-format (fn [fmt schema instance] fmt))
+(defmulti check-format (fn [fmt instance ctx] fmt))
 
-(defmethod check-format :default [fmt schema instance]
+(defmethod check-format :default [fmt instance ctx]
   ;; If format not known, succeed
   )
 
-(defmethod check-format "date-time" [fmt schema instance]
+(defmethod check-format "date-time" [fmt instance ctx]
   (when (string? instance)
     (try
       (.parse java.time.format.DateTimeFormatter/ISO_DATE_TIME instance)
-      []
+      nil
       (catch Exception e
-        [{:message "Doesn't match date-time format"}]))))
+        {:format fmt
+         :error {:message "Doesn't match date-time format"}}))))
 
-(defmethod check-format "date" [fmt schema instance]
+(defmethod check-format "date" [fmt instance ctx]
   (when (string? instance)
     (try
       (.parse java.time.format.DateTimeFormatter/ISO_LOCAL_DATE instance)
-      []
+      nil
       (catch Exception e
-        [{:message "Doesn't match date format"}]))))
+        {:format fmt
+         :error {:message "Doesn't match date format"}}
+        ))))
 
-(defmethod check-format "time" [fmt schema instance]
+(defmethod check-format "time" [fmt instance ctx]
   (when (string? instance)
     (try
       (.parse java.time.format.DateTimeFormatter/ISO_TIME instance)
-      []
+      nil
       (catch Exception e
-        [{:message "Doesn't match time format"}]))))
+        {:format fmt
+         :error {:message "Doesn't match time format"}}))))
 
-(defmethod check-format "email" [fmt schema instance]
+(defmethod check-format "email" [fmt instance ctx]
   (when (string? instance)
     (when-not (re-matches regex/addr-spec instance)
-      [{:message "Doesn't match email format"}])))
+      {:format fmt
+       :error {:message "Doesn't match email format"}})))
 
-(defmethod check-format "idn-email" [fmt schema instance]
+(defmethod check-format "idn-email" [fmt instance ctx]
   (when (string? instance)
     (when-not (re-matches regex/iaddr-spec instance)
-      [{:message "Doesn't match idn-email format"}])))
+      {:format fmt
+       :error {:message "Doesn't match idn-email format"}})))
 
-(defmethod check-format "hostname" [fmt schema instance]
+(defmethod check-format "hostname" [fmt instance ctx]
   (when (string? instance)
     ;; RFC 1034
     (when-not (regex/hostname? instance)
-      [{:message "Doesn't match hostname format"}])))
+      {:format fmt
+       :error {:message "Doesn't match hostname format"}})))
 
-(defmethod check-format "idn-hostname" [fmt schema instance]
+(defmethod check-format "idn-hostname" [fmt instance ctx]
   (when (string? instance)
     ;; RFC 5890
     (when-not (regex/idn-hostname? instance)
-      [{:message "Doesn't match idn-hostname format"}])))
+      {:format fmt
+       :error {:message "Doesn't match idn-hostname format"}})))
 
-(defmethod check-format "ipv4" [fmt schema instance]
+(defmethod check-format "ipv4" [fmt instance ctx]
   (when (string? instance)
     ;; RFC2673, section 3.2, dotted-quad - also RFC 3986
     (when-not (re-matches regex/IPv4address instance)
-      [{:message "Doesn't match ipv4 format"}])))
+      {:format fmt
+       :error {:message "Doesn't match ipv4 format"}})))
 
-(defmethod check-format "ipv6" [fmt schema instance]
+(defmethod check-format "ipv6" [fmt instance ctx]
   (when (string? instance)
     ;; TODO: Improve this regex: RFC4291
     (when-not (re-matches regex/IPv6address instance)
-      [{:message "Doesn't match ipv6 format"}])))
+      {:format fmt
+       :error {:message "Doesn't match ipv6 format"}})))
 
-(defmethod check-format "uri" [fmt schema instance]
+(defmethod check-format "uri" [fmt instance ctx]
   (when (string? instance)
     ;; RFC3986
     (when-not (re-matches regex/URI instance)
-      [{:message "Doesn't match URI format"}])))
+      {:format fmt
+       :error {:message "Doesn't match URI format"}})))
 
-(defmethod check-format "uri-reference" [fmt schema instance]
+(defmethod check-format "uri-reference" [fmt instance ctx]
   (when (string? instance)
     ;; TODO: Improve this regex: RFC3986
     (when-not (or (re-matches regex/URI instance)
                   (re-matches regex/relative-ref instance))
-      [{:message "Doesn't match URI-reference format"}])))
+      {:format fmt
+       :error {:message "Doesn't match URI-reference format"}})))
 
-(defmethod check-format "iri" [fmt schema instance]
+(defmethod check-format "iri" [fmt instance ctx]
   (when (string? instance)
     ;; RFC3987
     (when-not (re-matches regex/IRI instance)
-      [{:message "Doesn't match IRI format"}])))
+      {:format fmt
+       :error {:message "Doesn't match IRI format"}})))
 
-(defmethod check-format "iri-reference" [fmt schema instance]
+(defmethod check-format "iri-reference" [fmt instance ctx]
   (when (string? instance)
     ;; RFC3987
     (when-not (or (re-matches regex/IRI instance)
                   (re-matches regex/irelative-ref instance))
-      [{:message "Doesn't match IRI-reference format"}])))
+      {:format fmt
+       :error {:message "Doesn't match IRI-reference format"}})))
 
-(defmethod check-format "uri-template" [fmt schema instance]
+(defmethod check-format "uri-template" [fmt instance ctx]
   (when (string? instance)
     ;; TODO: Improve this regex: RFC6570
     (when-not (re-matches #".*" instance)
-      [{:message "Doesn't match uri-template format"}])))
+      {:format fmt
+       :error {:message "Doesn't match uri-template format"}})))
 
-(defmethod check-format "json-pointer" [fmt schema instance]
+(defmethod check-format "json-pointer" [fmt instance ctx]
   (when (string? instance)
     ;; RFC6901
     (when-not (re-matches regex/json-pointer instance)
-      [{:message "Doesn't match json-pointer format"}])))
+      {:format fmt
+       :error {:message "Doesn't match json-pointer format"}})))
 
-(defmethod check-format "relative-json-pointer" [fmt schema instance]
+(defmethod check-format "relative-json-pointer" [fmt instance ctx]
   (when (string? instance)
     (when-not (re-matches regex/relative-json-pointer instance)
-      [{:message "Doesn't match relative-json-pointer format"}])))
+      {:format fmt
+       :error {:message "Doesn't match relative-json-pointer format"}})))
 
-(defmethod check-format "regex" [fmt schema instance]
+(defmethod check-format "regex" [fmt instance ctx]
   (when (string? instance)
     (cond
       ;; (This might be cheating just to get past the test suite)
       (.contains instance "\\Z")
-      [{:message "Must not contain \\Z anchor from .NET"}]
+      {:format fmt
+       :error {:message "Must not contain \\Z anchor from .NET"}}
 
       :else
       (try
         (re-pattern instance)
-        []
+        nil
         (catch Exception e
-          [{:message "Illegal regex"}])))))
+          {:format fmt
+           :error {:message "Illegal regex"}})))))
 
-(defmethod check-assertion "format" [_ format schema instance doc options]
+(defmethod process-keyword "format" [_ format instance ctx]
   ;; TODO: This is optional, so should be possible to disable via
   ;; options - see 7.2 of draft-handrews-json-schema-validation-01:
   ;; "they SHOULD offer an option to disable validation for this
   ;; keyword."
-  (check-format format schema instance))
-
-;;(java.util.Base64$Decoder/decode "foo")
+  (check-format format instance ctx))
 
 (defn decode-content [content-encoding instance]
   ;; TODO: Open for extension with a multimethod
@@ -433,7 +679,7 @@
     "base64" (String. (.decode (java.util.Base64/getDecoder) instance))
     nil instance))
 
-(defmethod check-assertion "contentEncoding" [_ content-encoding schema instance doc options]
+(defmethod process-keyword "contentEncoding" [k content-encoding instance ctx]
   ;; TODO: This is optional, so should be possible to disable via
   ;; options - see 8.2 of draft-handrews-json-schema-validation-01:
   ;; "Implementations MAY support the "contentMediaType" and
@@ -442,12 +688,11 @@
   ;; validation for these keywords."
   (when (string? instance)
     (try
-      (decode-content content-encoding instance)
-      []
+      {:instant (decode-content content-encoding instance)}
       (catch Exception e
-        [{:message "Not base64"}]))))
+        {:error {:message "Not base64"}}))))
 
-(defmethod check-assertion "contentMediaType" [_ content-media-type schema instance doc options]
+(defmethod process-keyword "contentMediaType" [k content-media-type instance {:keys [schema] :as ctx}]
   ;; TODO: This is optional, so should be possible to disable via
   ;; options - see 8.2 of draft-handrews-json-schema-validation-01:
   ;; "Implementations MAY support the "contentMediaType" and
@@ -462,85 +707,127 @@
       (case content-media-type
         "application/json"
         (try
-          (println "Parsing string content" content)
-          (cheshire/parse-string content)
-          []
+          {:instant (cheshire/parse-string content)}
           (catch Exception e
-            [{:message "Instance is not application/json"}])))
-      [{:message "Unable to decode content"}])))
+            {:error {:message "Instance is not application/json"}})))
+      {:error {:message "Unable to decode content"}})))
 
-(defn resolve-ref [ref-object doc options]
+(defn resolve-ref [ref-object doc ctx]
   (assert ref-object)
 
   (let [ ;; "The value of the "$ref" property MUST be a URI Reference."
         ;; -- [CORE Section 8.3]
         base-uri (get (meta ref-object) :base-uri)
         ref (some-> (get ref-object "$ref") java.net.URLDecoder/decode)
-        uri (str (uri/join (or base-uri (:base-uri options)) ref))
-
-        ]
+        uri (str (uri/join (or base-uri (:base-uri ctx)) ref))]
 
     (let [options
-          (if false #_(contains? (:visited-memory options) uri)
+          (if false #_(contains? (:visited-memory ctx) uri)
               (throw (ex-info "Infinite cycle detected" {:uri uri}))
-              (update options :visited-memory (fnil conj #{}) uri))]
+              (update ctx :visited-memory (fnil conj #{}) uri))]
 
-      (let [[uri doc base-uri] (resolv/resolv uri doc (:resolvers options))]
-        [uri doc (cond-> options base-uri (assoc :base-uri base-uri))]))))
+      (let [[new-schema doc base-uri] (resolv/resolv uri doc (get-in ctx [:options :resolvers]))]
+        [new-schema (cond-> ctx
+                      base-uri (assoc :base-uri base-uri)
+                      doc (assoc :doc doc))]))))
 
-(def built-in-schemas
-  {"http://json-schema.org/draft-07/schema" "schemas/json-schema.org/draft-07/schema"})
-
-;; TODO: See index.js in JSON-Schema-Test-Suite to fix refRemote.json
-
-;; TODO: Tidy up
-
-;; TODO: Fix :schemas - support regex->schema, regex->fn
-
+(defmethod process-keyword "$ref" [_ ref instance {:keys [schema doc] :as ctx}]
+  (when (object? schema)
+    (let [[new-schema new-ctx] (resolve-ref schema doc ctx)
+          res (validate* instance new-schema new-ctx)
+          causes (:errors res)]
+      (cond-> res
+        causes
+        (-> (assoc :error {:message "Schema failed following ref" :causes causes})
+            (dissoc :errors))))))
 
 (defn- validate*
-  [schema instance doc options]
+  [instance schema {:keys [options] :as ctx}]
 
-  ;; We keep trying to find errors, returning them in a list.
-  (cond
-    (and (object? schema) (contains? schema "$ref"))
-    (let [[new-schema doc new-opts] (resolve-ref schema doc options)]
-      (validate* new-schema instance doc new-opts))
+  (if (boolean? schema)
+    (cond-> {:instance instance
+             :valid? schema}
+      (false? schema) (assoc :errors [{:message "Schema is false"}]))
 
-    (boolean? schema)
-    (if schema [] [{:message "Schema is boolean false"}])
-
-    :else
     ;; Start with an ordered list of known of validation keywords,
-    ;; before moving onto the validation keywords that have not yet
-    ;; been processed. This allows for the errors to be fairly
-    ;; determinstic and in the order expected, while allowing for
-    ;; extension.
-    (loop [keywords ["type" "enum" "const" "properties" "required"]
-           schema schema
-           other-keywords (set (keys schema))
-           instance instance
-           errors []]
-      ;; TODO: What if schema is a boolean schema?
-      (if-let [k (or (first keywords) (first other-keywords))]
-        (recur
-         (next keywords)
-         schema
-         (disj other-keywords k)
-         instance
-         (cond-> errors
-           (contains? schema k)
-           (concat (check-assertion k (get schema k) schema instance doc options))))
-        ;; Finally, return the errors (even if empty).
-        errors))))
+    ;; this order is from https://github.com/playlyfe/themis.
+    ;; Possible to override.
+    (let [keywords (or
+                    (:keywords options)
+                    ["default"
+                     "$schema"
+                     "$ref"
+                     "title"
+                     "description"
+                     "examples"
+                     "definitions"
+                     "type"
+                     "multipleOf"
+                     "minimum"
+                     "exclusiveMinimum"
+                     "maximum"
+                     "exclusiveMaximum"
+                     "minLength"
+                     "maxLength"
+                     "pattern"
+                     "format"
+                     "contentEncoding"
+                     "contentMediaType"
+                     "additionalItems"
+                     "items"
+                     "minItems"
+                     "maxItems"
+                     "uniqueItems"
+                     "contains"
+                     "required"
+                     "additionalProperties"
+                     "patternProperties"
+                     "properties"
+                     "minProperties"
+                     "maxProperties"
+                     "propertyNames"
+                     "dependencies"
+                     "allOf"
+                     "anyOf"
+                     "oneOf"
+                     "if"
+                     "then"
+                     "else"
+                     "not"
+                     "enum"
+                     "const"
+                     ])]
 
+      (let [ctx (assoc ctx :schema schema)
+            results (reduce
+                     (fn [acc kw]
+                       (let [[k v] (find schema kw)]
+                         (if k
+                           (if-let [result (process-keyword
+                                            kw v
+                                            #_instance ; original
+                                            (some-some? :instance acc) ; curated
+                                            (assoc ctx :acc acc))]
+                             (conj acc (assoc result :keyword kw))
+                             acc)
+                           acc)))
+                     (list {:instance instance :keyword :init})
+                     (distinct (concat keywords (keys schema))))]
+        (let [errors (reverse (keep :error results))]
+          (merge
+           {:instance (some-some? :instance results)
+            :valid? (empty? errors)}
+           (when (not-empty errors) {:errors (vec errors)})
+           (when (:journal? options) {:journal (reverse results)})))))))
 
 (defn validate
-  "Options include
-  :schemas - a map from uris (or regexes) to functions that return schemas"
-  ([schema instance]
-   (validate schema instance {:resolvers [::resolv/built-in]}))
+  "Instance should come first do support the Clojure thread-first
+  macro. Instances are the objects here, schemas are the incidentals."
+  ([instance schema]
+   (validate instance schema {:resolvers [::resolv/built-in]}))
 
-  ([schema instance options]
+  ([instance schema options]
    (validate*
-    schema instance schema options)))
+    instance schema
+    {:doc schema
+     :options (merge {:resolvers [::resolv/built-in]} options)})))
