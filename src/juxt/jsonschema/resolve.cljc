@@ -1,14 +1,14 @@
 ;; Copyright © 2019, JUXT LTD.
 
+
 (ns juxt.jsonschema.resolve
   (:require
    [juxt.jsonschema.schema :as schema]
+   [juxt.jsonschema.jsonpointer :as jsonpointer]
    [clojure.string :as str]
-   [cheshire.core :as cheshire]
-   [clojure.java.io :as io]
-   [juxt.jsonschema.jsonpointer :as jsonpointer]))
-
-;; Resolver framework
+   #?(:clj [cheshire.core :as cheshire])
+   #?(:clj [clojure.java.io :as io])
+   #?(:cljs [cljs-node-io.core :as io :refer [slurp spit]])))
 
 (defmulti resolve-uri (fn [k uri] (cond (keyword? k) k (coll? k) (first k))))
 

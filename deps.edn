@@ -1,7 +1,8 @@
 {:paths ["src" "test" "resources"]
  :deps
  {cheshire {:mvn/version "5.8.1"}
-  lambdaisland/uri {:mvn/version "1.1.0"}}
+  lambdaisland/uri {:mvn/version "1.1.0"}
+  cljs-node-io {:mvn/version "1.1.2"}}
  :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]
  :aliases
  {:dev
@@ -14,7 +15,6 @@
    :jvm-opts ["-Dclojure.spec.compile-asserts=true"]}
   :test-cljs {:extra-paths ["test" "cljs-test-runner-out/gen"]
               :extra-deps {org.clojure/clojurescript {:mvn/version "1.10.238"}
-                     ;       cljs-node-io {:mvn/version "1.1.2"}
                            olical/cljs-test-runner {:mvn/version "3.5.0"}}
               :main-opts   ["-m" "cljs-test-runner.main" "-c" "test/cljs-test-opts.edn -x chrome-headless"]}
   :test {:extra-paths ["test"]

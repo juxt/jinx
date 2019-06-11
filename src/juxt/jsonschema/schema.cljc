@@ -39,9 +39,9 @@
   (let [schema (with-base-uri-meta schema)
         index (into {} (index-by-uri schema))]
     (cond->
-        schema
-        (and (instance? clojure.lang.IMeta schema) index)
-        (with-meta (-> schema meta (assoc :uri->schema index))))))
+     schema
+      (and (instance? clojure.lang.IMeta schema) index)
+      (with-meta (-> schema meta (assoc :uri->schema index))))))
 
 ;; TODO: Try against all schemas in test-suite
 
@@ -65,20 +65,20 @@
 
 (comment
   (let [schema
-        {"$id" "http://localhost:1234/tree",
-         "description" "tree of nodes",
-         "type" "object",
+        {"$id" "http://localhost:1234/tree"
+         "description" "tree of nodes"
+         "type" "object"
          "properties"
-         {"meta" {"type" "string"},
-          "nodes" {"type" "array", "items" {"$ref" "node"}}},
-         "required" ["meta" "nodes"],
+         {"meta" {"type" "string"}
+          "nodes" {"type" "array", "items" {"$ref" "node"}}}
+         "required" ["meta" "nodes"]
          "definitions"
          {"node"
-          {"$id" "http://localhost:1234/node",
-           "description" "node",
-           "type" "object",
+          {"$id" "http://localhost:1234/node"
+           "description" "node"
+           "type" "object"
            "properties"
-           {"value" {"type" "number"}, "subtree" {"$ref" "tree"}},
+           {"value" {"type" "number"}, "subtree" {"$ref" "tree"}}
            "required" ["value"]}}}
         schema (with-base-uri-meta schema)
         index (into {} (index-by-uri schema))]

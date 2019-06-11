@@ -3,16 +3,14 @@
 (ns juxt.jsonschema.validate
   (:refer-clojure :exclude [number? integer?])
   (:require
-   [cheshire.core :as cheshire]
-   [clojure.set :as set]
-   [clojure.string :as str]
-   [clojure.java.io :as io] ;; TODO: Support cljs
-   [clojure.test :refer [deftest is are]]
-   [juxt.jsonschema.jsonpointer :as jsonpointer]
-   [juxt.jsonschema.schema :as schema]
    [juxt.jsonschema.resolve :as resolv]
-   [juxt.jsonschema.regex :as regex]
-   [lambdaisland.uri :as uri]))
+   [clojure.string :as str]
+   [clojure.set :as set]
+   [lambdaisland.uri :as uri]
+   #?(:clj [cheshire.core :as cheshire])
+   #?(:clj [clojure.java.io :as io])
+   #?(:cljs [cljs-node-io.core :as io :refer [slurp spit]])))
+
 
 (declare validate*)
 
@@ -126,9 +124,7 @@
           ;; TODO: We have an error, but we should first try to coerce - e.g. string->number, number->string
 
           {:error
-           {:message (format "Instance of %s is not of type %s"
-                             (pr-str instance)
-                             (pr-str type))
+           {:message (str "Instance of " (pr-str instance)" is not of type " (pr-str type))                             
             :instance instance
             :type type}}
 
@@ -149,17 +145,17 @@
                 "array" {:instance []
                          :note "Implied value"})
 
-              {:error {:message (format "Instance of %s is not of type %s" (pr-str instance) (pr-str type))
+              {:error {:message (str "Instance of " (pr-str instance)" is not of type "  (pr-str type))
                        :instance instance
                        :type type}}))
 
         ;; Nil pred
-        (throw (IllegalStateException. "Invalid schema detected")))
+        (throw (ex-info "Invalid schema detected" {})))
 
       (array? type)
       (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
         ;; TODO: Find out _which_ type it matches, and instantiate _that_
-        {:error {:message (format "Value must be of type %s" (str/join " or " (pr-str type)))}}))
+        {:error {:message (str "Value must be of type " (str/join " or " (pr-str type)))}}))
 
 
     ))
@@ -170,11 +166,11 @@
 
 (defmethod process-keyword "enum" [k enum instance ctx]
   (when-not (contains? (set enum) instance)
-    {:error {:message (format "Value %s must be in enum %s" instance enum)}}))
+    {:error {:message (str "Value " instance" must be in enum " enum)}}))
 
 (defmethod process-keyword "const" [k const instance ctx]
   (when-not (= const instance)
-    {:error {:message (format "Value %s must be equal to const %s" instance const)}}))
+    {:error {:message (str "Value "instance" must be equal to const "  const)}}))
 
 (defmethod process-keyword "multipleOf" [k multiple-of instance ctx]
   (when (number? instance)
@@ -220,7 +216,7 @@
 (defmethod process-keyword "pattern" [_ pattern instance ctx]
   (when (string? instance)
     (when-not (re-seq (re-pattern pattern) instance)
-      {:error {:message (format "String does not match pattern %s" pattern)}})))
+      {:error {:message (str "String does not match pattern " pattern)}})))
 
 ;; TODO: Show paths in error messages
 ;; TODO: Improve error messages, possibly copying Ajv or org.everit json-schema
@@ -365,7 +361,7 @@
                        (if (get schema "additionalProperties")
                          {:note "Unknown property not affecting validation"}
                          {:error
-                          {:message (format "No additional properties allowed in this object: %s" kw)
+                          {:message (str "No additional properties allowed in this object: " kw)
                            :keyword kw
                            }}))]))]
 
@@ -560,111 +556,111 @@
         {:format fmt
          :error {:message "Doesn't match time format"}}))))
 
-(defmethod check-format "email" [fmt instance ctx]
-  (when (string? instance)
-    (when-not (re-matches regex/addr-spec instance)
-      {:format fmt
-       :error {:message "Doesn't match email format"}})))
+; (defmethod check-format "email" [fmt instance ctx]
+;   (when (string? instance)
+;     (when-not (re-matches regex/addr-spec instance)
+;       {:format fmt
+;        :error {:message "Doesn't match email format"}})))
 
-(defmethod check-format "idn-email" [fmt instance ctx]
-  (when (string? instance)
-    (when-not (re-matches regex/iaddr-spec instance)
-      {:format fmt
-       :error {:message "Doesn't match idn-email format"}})))
+; (defmethod check-format "idn-email" [fmt instance ctx]
+;   (when (string? instance)
+;     (when-not (re-matches regex/iaddr-spec instance)
+;       {:format fmt
+;        :error {:message "Doesn't match idn-email format"}})))
 
-(defmethod check-format "hostname" [fmt instance ctx]
-  (when (string? instance)
-    ;; RFC 1034
-    (when-not (regex/hostname? instance)
-      {:format fmt
-       :error {:message "Doesn't match hostname format"}})))
+; (defmethod check-format "hostname" [fmt instance ctx]
+;   (when (string? instance)
+;     ;; RFC 1034
+;     (when-not (regex/hostname? instance)
+;       {:format fmt
+;        :error {:message "Doesn't match hostname format"}})))
 
-(defmethod check-format "idn-hostname" [fmt instance ctx]
-  (when (string? instance)
-    ;; RFC 5890
-    (when-not (regex/idn-hostname? instance)
-      {:format fmt
-       :error {:message "Doesn't match idn-hostname format"}})))
+; (defmethod check-format "idn-hostname" [fmt instance ctx]
+;   (when (string? instance)
+;     ;; RFC 5890
+;     (when-not (regex/idn-hostname? instance)
+;       {:format fmt
+;        :error {:message "Doesn't match idn-hostname format"}})))
 
-(defmethod check-format "ipv4" [fmt instance ctx]
-  (when (string? instance)
-    ;; RFC2673, section 3.2, dotted-quad - also RFC 3986
-    (when-not (re-matches regex/IPv4address instance)
-      {:format fmt
-       :error {:message "Doesn't match ipv4 format"}})))
+; (defmethod check-format "ipv4" [fmt instance ctx]
+;   (when (string? instance)
+;     ;; RFC2673, section 3.2, dotted-quad - also RFC 3986
+;     (when-not (re-matches regex/IPv4address instance)
+;       {:format fmt
+;        :error {:message "Doesn't match ipv4 format"}})))
 
-(defmethod check-format "ipv6" [fmt instance ctx]
-  (when (string? instance)
-    ;; TODO: Improve this regex: RFC4291
-    (when-not (re-matches regex/IPv6address instance)
-      {:format fmt
-       :error {:message "Doesn't match ipv6 format"}})))
+; (defmethod check-format "ipv6" [fmt instance ctx]
+;   (when (string? instance)
+;     ;; TODO: Improve this regex: RFC4291
+;     (when-not (re-matches regex/IPv6address instance)
+;       {:format fmt
+;        :error {:message "Doesn't match ipv6 format"}})))
 
-(defmethod check-format "uri" [fmt instance ctx]
-  (when (string? instance)
-    ;; RFC3986
-    (when-not (re-matches regex/URI instance)
-      {:format fmt
-       :error {:message "Doesn't match URI format"}})))
+; (defmethod check-format "uri" [fmt instance ctx]
+;   (when (string? instance)
+;     ;; RFC3986
+;     (when-not (re-matches regex/URI instance)
+;       {:format fmt
+;        :error {:message "Doesn't match URI format"}})))
 
-(defmethod check-format "uri-reference" [fmt instance ctx]
-  (when (string? instance)
-    ;; TODO: Improve this regex: RFC3986
-    (when-not (or (re-matches regex/URI instance)
-                  (re-matches regex/relative-ref instance))
-      {:format fmt
-       :error {:message "Doesn't match URI-reference format"}})))
+; (defmethod check-format "uri-reference" [fmt instance ctx]
+;   (when (string? instance)
+;     ;; TODO: Improve this regex: RFC3986
+;     (when-not (or (re-matches regex/URI instance)
+;                   (re-matches regex/relative-ref instance))
+;       {:format fmt
+;        :error {:message "Doesn't match URI-reference format"}})))
 
-(defmethod check-format "iri" [fmt instance ctx]
-  (when (string? instance)
-    ;; RFC3987
-    (when-not (re-matches regex/IRI instance)
-      {:format fmt
-       :error {:message "Doesn't match IRI format"}})))
+; (defmethod check-format "iri" [fmt instance ctx]
+;   (when (string? instance)
+;     ;; RFC3987
+;     (when-not (re-matches regex/IRI instance)
+;       {:format fmt
+;        :error {:message "Doesn't match IRI format"}})))
 
-(defmethod check-format "iri-reference" [fmt instance ctx]
-  (when (string? instance)
-    ;; RFC3987
-    (when-not (or (re-matches regex/IRI instance)
-                  (re-matches regex/irelative-ref instance))
-      {:format fmt
-       :error {:message "Doesn't match IRI-reference format"}})))
+; (defmethod check-format "iri-reference" [fmt instance ctx]
+;   (when (string? instance)
+;     ;; RFC3987
+;     (when-not (or (re-matches regex/IRI instance)
+;                   (re-matches regex/irelative-ref instance))
+;       {:format fmt
+;        :error {:message "Doesn't match IRI-reference format"}})))
 
-(defmethod check-format "uri-template" [fmt instance ctx]
-  (when (string? instance)
-    ;; TODO: Improve this regex: RFC6570
-    (when-not (re-matches #".*" instance)
-      {:format fmt
-       :error {:message "Doesn't match uri-template format"}})))
+; (defmethod check-format "uri-template" [fmt instance ctx]
+;   (when (string? instance)
+;     ;; TODO: Improve this regex: RFC6570
+;     (when-not (re-matches #".*" instance)
+;       {:format fmt
+;        :error {:message "Doesn't match uri-template format"}})))
 
-(defmethod check-format "json-pointer" [fmt instance ctx]
-  (when (string? instance)
-    ;; RFC6901
-    (when-not (re-matches regex/json-pointer instance)
-      {:format fmt
-       :error {:message "Doesn't match json-pointer format"}})))
+; (defmethod check-format "json-pointer" [fmt instance ctx]
+;   (when (string? instance)
+;     ;; RFC6901
+;     (when-not (re-matches regex/json-pointer instance)
+;       {:format fmt
+;        :error {:message "Doesn't match json-pointer format"}})))
 
-(defmethod check-format "relative-json-pointer" [fmt instance ctx]
-  (when (string? instance)
-    (when-not (re-matches regex/relative-json-pointer instance)
-      {:format fmt
-       :error {:message "Doesn't match relative-json-pointer format"}})))
+; (defmethod check-format "relative-json-pointer" [fmt instance ctx]
+;   (when (string? instance)
+;     (when-not (re-matches regex/relative-json-pointer instance)
+;       {:format fmt
+;        :error {:message "Doesn't match relative-json-pointer format"}})))
 
-(defmethod check-format "regex" [fmt instance ctx]
-  (when (string? instance)
-    (cond
-      ;; (This might be cheating just to get past the test suite)
-      (.contains instance "\\Z")
-      {:format fmt
-       :error {:message "Must not contain \\Z anchor from .NET"}}
+; (defmethod check-format "regex" [fmt instance ctx]
+;   (when (string? instance)
+;     (cond
+;       ;; (This might be cheating just to get past the test suite)
+;       (.contains instance "\\Z")
+;       {:format fmt
+;        :error {:message "Must not contain \\Z anchor from .NET"}}
 
-      :else
-      (try
-        (re-pattern instance)
-        nil
-        (catch Exception e
-          {:format fmt
-           :error {:message "Illegal regex"}})))))
+;       :else
+;       (try
+;         (re-pattern instance)
+;         nil
+;         (catch Exception e
+;           {:format fmt
+;            :error {:message "Illegal regex"}})))))
 
 (defmethod process-keyword "format" [_ format instance ctx]
   ;; TODO: This is optional, so should be possible to disable via

@@ -215,11 +215,11 @@
 
 (defn idn-hostname? [s]
   (when-let [ace (try
-              (java.net.IDN/toASCII s)
-              (catch IllegalArgumentException e
+                   (java.net.IDN/toASCII s)
+                   (catch IllegalArgumentException e
                 ;; Catch an error indicating this is not valid
                 ;; idn-hostname
-                ))]
+                     ))]
     (and
      ;; Ensure no illegal chars
      (empty? (set/intersection (set (seq s))
@@ -321,8 +321,8 @@
 (def URI (compose "(?<scheme>%s):(?:%s)(?:%s(?<query>%s))?(?:#(?<fragment>%s))?" scheme hier-part QUESTION-MARK query fragment))
 
 (def relative-part (compose "(?://%s%s|%s|%s|%s)"
-                             authority path-abempty path-absolute
-                             path-noscheme path-empty))
+                            authority path-abempty path-absolute
+                            path-noscheme path-empty))
 
 (def relative-ref (compose "%s(?:%s(?<query>%s))?(?:#(?<fragment>%s))?" relative-part QUESTION-MARK query fragment))
 
@@ -392,7 +392,7 @@
 (def iprivate (concat (int-range 0xE000 0xF8FF)
                       ;;(int-range 0xF0000 0xFFFFD)
                      ;;(int-range 0x100000 0x10FFFD)
-                     ))
+                      ))
 
 
 (def iquery (compose "(?:%s|%s|%s|%s)*" ipchar iprivate \/ \?))

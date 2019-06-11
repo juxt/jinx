@@ -1,16 +1,21 @@
 ;; Copyright © 2019, JUXT LTD.
 
+
 (ns juxt.jsonschema.official-test
-  (:require
-   [cheshire.core :as json]
-   [clojure.java.io :as io]
-   [juxt.jsonschema.validate :refer [validate]]
-   [juxt.jsonschema.schema :refer [schema]]
-   [juxt.jsonschema.resolve :as resolv]
-   [clojure.set :as set]
-   [clojure.test :as test]
-   [juxt.jsonschema.schema :as schema]
-   [cheshire.core :as cheshire]))
+  #?@(:clj [(:require [clojure.java.io :as io]
+                      [cheshire.core :as json]
+                      [clojure.test :refer :all]
+                      [clojure.test :as test]
+                      [juxt.jsonschema.validate :refer [validate]]
+                      [juxt.jsonschema.schema :refer [schema]]
+                      [juxt.jsonschema.resolve :as resolv]
+                      [juxt.jsonschema.schema :as schema])]
+      :cljs [(:require [cljs-node-io.core :as io :refer [slurp]]
+                       [cljs.test :refer-macros [test deftest is testing run-tests]]
+                       [juxt.jsonschema.validate :refer [validate]]
+                       [juxt.jsonschema.schema :refer [schema]]
+                       [juxt.jsonschema.resolve :as resolv]
+                       [juxt.jsonschema.schema :as schema])]))
 
 (def TESTS-ROOT (io/file (System/getenv "JUXT_REPOS") "JSON-Schema-Test-Suite"))
 
@@ -80,4 +85,4 @@
                (test/testing ~(:test-description test)
                  (test/is (success? (test-jsonschema ~test)))))))))
 
-(make-tests)
+ (make-tests)
