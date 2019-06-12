@@ -18,7 +18,7 @@
 
 (defmethod resolve-uri ::built-in [_ uri]
   (when-let [res (built-in-schemas uri)]
-    (m/parse-stream-cljc  res)))
+    (m/parse-stream-cljc  "./resources/schemas/json-schema.org/draft-07/schema")))
 
 
 (defprotocol DefaultResolverDereferencer
