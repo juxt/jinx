@@ -756,50 +756,41 @@
       ;; this order is from https://github.com/playlyfe/themis.
       ;; Possible to override.
       :else
-      (let [keywords (or
-                      (:keywords options)
-                      ["default"
-                       "$schema"
-                       "title"
-                       "description"
-                       "examples"
-                       "definitions"
-                       "type"
-                       "multipleOf"
-                       "minimum"
-                       "exclusiveMinimum"
-                       "maximum"
-                       "exclusiveMaximum"
-                       "minLength"
-                       "maxLength"
-                       "pattern"
-                       "format"
-                       "contentEncoding"
-                       "contentMediaType"
-                       "additionalItems"
-                       "items"
-                       "minItems"
-                       "maxItems"
-                       "uniqueItems"
-                       "contains"
-                       "required"
-                       "additionalProperties"
-                       "patternProperties"
-                       "properties"
-                       "minProperties"
-                       "maxProperties"
-                       "propertyNames"
-                       "dependencies"
-                       "allOf"
-                       "anyOf"
-                       "oneOf"
-                       "if"
-                       "then"
-                       "else"
-                       "not"
-                       "enum"
-                       "const"
-                       ])]
+      (let [keywords
+            (or
+             (:keywords options)
+             ["$schema"
+              "definitions"
+
+              ;; Process annotations first as these can affect the instance
+              "title"
+              "description"
+              "default"
+              "readOnly" "writeOnly"
+              "examples"
+
+              ;; 6.1.  Validation Keywords for Any Instance Type
+              "type" "enum" "const"
+              ;; 6.2.  Validation Keywords for Numeric Instances (number and integer)
+              "multipleOf" "maximum" "exclusiveMinimum" "minimum" "exclusiveMaximum"
+              ;; 6.3.  Validation Keywords for Strings
+              "maxLength" "minLength" "pattern"
+              ;; 6.4.  Validation Keywords for Arrays
+              "items" "additionalItems" "maxItems" "minItems" "uniqueItems" "contains"
+              ;; 6.5.  Validation Keywords for Objects
+              "maxProperties" "minProperties" "required" "properties"
+              "patternProperties" "additionalProperties" "dependencies"
+              "propertyNames"
+              ;; 6.6.  Keywords for Applying Subschemas Conditionally
+              "if" "then" "else"
+              ;; 6.7.  Keywords for Applying Subschemas With Boolean Logic
+              "allOf" "anyOf" "oneOf" "not"
+              ;; 7.  Semantic Validation With "format"
+              "format"
+              ;; 8.  String-Encoding Non-JSON Data
+              "contentEncoding" "contentMediaType"
+
+              ])]
 
         (let [ctx (assoc ctx :schema schema)
               results (reduce
