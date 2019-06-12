@@ -9,21 +9,13 @@
    [clojure.java.io :as io] ;; TODO: Support cljs
    [clojure.test :refer [deftest is are]]
    [juxt.jsonschema.jsonpointer :as jsonpointer]
+   [juxt.jsonschema.core :refer [array? object? schema?]]
    [juxt.jsonschema.schema :as schema]
    [juxt.jsonschema.resolve :as resolv]
    [juxt.jsonschema.regex :as regex]
    [lambdaisland.uri :as uri]))
 
 (declare validate*)
-
-(defn array? [x]
-  (sequential? x))
-
-(defn object? [x]
-  (map? x))
-
-(defn schema? [x]
-  (or (object? x) (boolean? x)))
 
 ;; All references here relate to
 ;; draft-handrews-json-schema-validation-01.txt unless otherwise
@@ -451,7 +443,8 @@
                    :causes (:errors result)}})))))
 
 ;; TODO: Rather than get, use a macro to retrieve either strings and
-;; keywords, supporting both
+;; keywords, supporting both. But BE CAREFUL with :default as we'll
+;; need to repoint the defmulti's :default in that case.
 
 (defmulti check-format (fn [fmt instance ctx] fmt))
 

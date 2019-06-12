@@ -2,6 +2,7 @@
 
 (ns juxt.jsonschema.schema
   (:require
+   [juxt.jsonschema.core :refer [array? object? schema?]]
    [lambdaisland.uri :refer [join]]))
 
 (defn- with-base-uri-meta
@@ -35,7 +36,25 @@
     (vector? schema)
     (mapcat index-by-uri schema)))
 
+(defmulti validate-keyword (fn [kw v] kw))
+
+(defmethod validate-keyword :default [kw v] nil)
+
+(defmethod validate-keyword "type" [kw v]
+  (when-not (or (string? v) (array? v))
+    (throw (ex-info "The value of 'type' MUST be either a string or an array" {}))))
+
+(defn- validate [schema]
+  (or
+   (boolean? schema)
+   (nil? schema)
+   (doseq [[k v] (seq schema)]
+     (validate-keyword k v))))
+
 (defn schema [schema]
+  ;; TODO: Ensure schema is returned as-is if it's existing schema
+  ;; TODO: Add ^:juxt/schema true - which is the right keyword here?
+  (validate schema)
   (let [schema (with-base-uri-meta schema)
         index (into {} (index-by-uri schema))]
     (cond->
