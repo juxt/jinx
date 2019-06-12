@@ -4,7 +4,7 @@
   (:require
    [lambdaisland.uri :refer [join]]))
 
-(defn with-base-uri-meta
+(defn- with-base-uri-meta
   "For each $id in the schema, add metadata to indicate the base-uri."
   ([schema]
    (with-base-uri-meta nil schema))
@@ -23,7 +23,7 @@
      (vector? schema) (mapv (partial with-base-uri-meta base-uri) schema)
      :else schema)))
 
-(defn index-by-uri [schema]
+(defn- index-by-uri [schema]
   (cond
     (map? schema)
     (let [mt (meta schema)]
