@@ -130,28 +130,7 @@
                              (pr-str instance)
                              (pr-str type))
             :instance instance
-            :type type}}
-
-
-          #_(if (and (nil? instance) (contains? #{"object" "array"} type))
-
-              ;; There is no instance, which means no default.
-
-              ;; As a recovery step, we will try to default the instance here.
-
-              ;; Note: recovery steps should be made optional via options,and
-              ;; possibly possible to override with multimethods.
-
-
-              (case type
-                "object" {:instance {}
-                          :note "Implied value"}
-                "array" {:instance []
-                         :note "Implied value"})
-
-              {:error {:message (format "Instance of %s is not of type %s" (pr-str instance) (pr-str type))
-                       :instance instance
-                       :type type}}))
+            :type type}})
 
         ;; Nil pred
         (throw (IllegalStateException. "Invalid schema detected")))
@@ -159,10 +138,7 @@
       (array? type)
       (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
         ;; TODO: Find out _which_ type it matches, and instantiate _that_
-        {:error {:message (format "Value must be of type %s" (str/join " or " (pr-str type)))}}))
-
-
-    ))
+        {:error {:message (format "Value must be of type %s" (str/join " or " (pr-str type)))}}))))
 
 ;; TODO: Pass schema-path (and data-path) in a 'ctx' arg, not options
 ;; (keep 'options' constant). Demote 'doc' to 'ctx' entry, which
@@ -237,8 +213,7 @@
           (if (every? :valid? children)
             {:items children}
             {:error {:message "Not all items are valid"
-                     :bad-items (filter :errors children)}})
-          )
+                     :bad-items (filter :errors children)}}))
 
         (boolean? items)
         ;; TODO: Add a test for this
@@ -343,39 +318,7 @@
 
       (when-let [causes (:causes result)]
         {:error {:message "Some properties failed to validate against their schemas"
-                 :causes causes}})))
-
-  #_(when (object? instance)
-
-      (let [results
-            (into {}
-                  (for [[kw child] (merge
-                                    #_(:result-instance state) ; this is to fill out these
-                                    instance)
-                        :let [child (get instance kw)
-                              subschema (get properties kw)]]
-
-                    [kw
-                     (if subschema
-                       (-> (validate* subschema child (-> ctx
-                                                          (update :schema-path conj "properties" kw)
-                                                          (assoc :state {})))
-                           options)
-                       ;; else no subschema, this is an unknown property
-                       (if (get schema "additionalProperties")
-                         {:note "Unknown property not affecting validation"}
-                         {:error
-                          {:message (format "No additional properties allowed in this object: %s" kw)
-                           :keyword kw
-                           }}))]))]
-
-        {:state (-> state
-                    (assoc :properties results)
-                    #_(update :result-instance merge (into {} (for [[k v] results
-                                                                    :when (:valid? v)]
-                                                                [k (:result-instance v)])))
-                    (assoc :valid? (every? :valid? (vals results)))
-                    )})))
+                 :causes causes}}))))
 
 (defmethod process-keyword "patternProperties" [k pattern-properties instance ctx]
   (when (object? instance)
@@ -438,23 +381,7 @@
                   dependency-results)]
       (cond-> result
         (:error result)
-        (assoc-in [:error :message] "Some dependencies had validation errors")))
-
-
-    #_(let [children
-            (for [[propname dvalue] dependencies]
-              (when (contains? instance propname)
-                (cond
-                  (schema? dvalue)
-                  (validate* instance dvalue ctx)
-                  (array? dvalue)
-                  (when-not (every? #(contains? instance %) dvalue)
-                    {:dependency propname
-                     :errors [{:message "Not every dependency in instance"}]}))))]
-        (when (not-empty children)
-
-          (println "not empty children" children)
-          {:children children}))))
+        (assoc-in [:error :message] "Some dependencies had validation errors")))))
 
 (defmethod process-keyword "propertyNames" [k property-names instance ctx]
   (when (object? instance)
@@ -788,9 +715,7 @@
               ;; 7.  Semantic Validation With "format"
               "format"
               ;; 8.  String-Encoding Non-JSON Data
-              "contentEncoding" "contentMediaType"
-
-              ])]
+              "contentEncoding" "contentMediaType"])]
 
         (let [ctx (assoc ctx :schema schema)
               results (reduce
