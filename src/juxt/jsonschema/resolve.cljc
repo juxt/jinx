@@ -1,25 +1,37 @@
 ;; Copyright © 2019, JUXT LTD.
 
-
 (ns juxt.jsonschema.resolve
   (:require
    [juxt.jsonschema.schema :as schema]
-   [juxt.jsonschema.jsonpointer :as jsonpointer]
    [clojure.string :as str]
-   [juxt.jsonschema.jmacro :as m :refer-macros [parse-stream-cljc]]))
-  ; (:require-macros [juxt.jsonschema.jmacro :as m :refer [parse-stream-cljc]]))
+   #?@(:clj [[cheshire.core :as cheshire]
+             [clojure.java.io :as io]])
+   [juxt.jsonschema.jsonpointer :as jsonpointer]
+   #?(:cljs (:require-macros [juxt.jsonschema.resolve :refer [slurp-resource ]]))))
 
 (defmulti resolve-uri (fn [k uri] (cond (keyword? k) k (coll? k) (first k))))
+
+(defn read-json-string [json-str]
+  #?(:clj
+     (cheshire/parse-string json-str)
+     :cljs (js/JSON.parse json-str)))
+
+(defn read-json-string-rdr [json-str]
+  #?(:clj
+     (cheshire/parse-stream (io/reader json-str))
+     :cljs (js/JSON.parse json-str)))
+
+(defmacro slurp-resource [resource]
+  (slurp (str "resources/" resource)))
 
 ;; Built-in
 
 (def built-in-schemas
-  {"http://json-schema.org/draft-07/schema" "schemas/json-schema.org/draft-07/schema"})
+  {"http://json-schema.org/draft-07/schema" (slurp-resource "schemas/json-schema.org/draft-07/schema")})
 
 (defmethod resolve-uri ::built-in [_ uri]
   (when-let [res (built-in-schemas uri)]
-    (m/parse-stream-cljc  "./resources/schemas/json-schema.org/draft-07/schema")))
-
+    (read-json-string res)))
 
 (defprotocol DefaultResolverDereferencer
   (deref-val [_ k] "Dereference"))
@@ -27,7 +39,7 @@
 (extend-protocol DefaultResolverDereferencer
   java.net.URL
   (deref-val [res k]
-    (m/parse-stream-cljc res))
+    (read-json-string-rdr res))
 
   #?(:clj Boolean :cljs boolean (deref-val [res k] res))
 
@@ -38,7 +50,7 @@
   (deref-val [f k] (deref-val (f k) k))
 
   java.io.File
-  (deref-val [file k] (m/parse-stream-cljc file))
+  (deref-val [file k] (read-json-string-rdr file))
   )
 
 (defmethod resolve-uri ::default-resolver [[_ m] ^String uri]
