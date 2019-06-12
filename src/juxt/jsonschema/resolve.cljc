@@ -6,9 +6,8 @@
    [juxt.jsonschema.schema :as schema]
    [juxt.jsonschema.jsonpointer :as jsonpointer]
    [clojure.string :as str]
-   #?(:clj [cheshire.core :as cheshire])
-   #?(:clj [clojure.java.io :as io])
-   #?(:cljs [cljs-node-io.core :as io :refer [slurp spit]])))
+   [juxt.jsonschema.jmacro :as m :refer-macros [parse-stream-cljc]]))
+  ; (:require-macros [juxt.jsonschema.jmacro :as m :refer [parse-stream-cljc]]))
 
 (defmulti resolve-uri (fn [k uri] (cond (keyword? k) k (coll? k) (first k))))
 
@@ -19,7 +18,7 @@
 
 (defmethod resolve-uri ::built-in [_ uri]
   (when-let [res (built-in-schemas uri)]
-    (cheshire/parse-stream (io/reader (io/resource res)))))
+    (m/parse-stream-cljc  res)))
 
 
 (defprotocol DefaultResolverDereferencer
@@ -28,9 +27,9 @@
 (extend-protocol DefaultResolverDereferencer
   java.net.URL
   (deref-val [res k]
-    (cheshire/parse-stream (io/reader res)))
+    (m/parse-stream-cljc res))
 
-  Boolean (deref-val [res k] res)
+  #?(:clj Boolean :cljs boolean (deref-val [res k] res))
 
   clojure.lang.IPersistentMap
   (deref-val [res k] res)
@@ -39,7 +38,7 @@
   (deref-val [f k] (deref-val (f k) k))
 
   java.io.File
-  (deref-val [file k] (cheshire/parse-stream (io/reader file)))
+  (deref-val [file k] (m/parse-stream-cljc file))
   )
 
 (defmethod resolve-uri ::default-resolver [[_ m] ^String uri]
