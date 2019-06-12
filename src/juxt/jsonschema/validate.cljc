@@ -731,94 +731,97 @@
                       base-uri (assoc :base-uri base-uri)
                       doc (assoc :doc doc))]))))
 
-(defmethod process-keyword "$ref" [_ ref instance {:keys [schema doc] :as ctx}]
-  (when (object? schema)
-    (let [[new-schema new-ctx] (resolve-ref schema doc ctx)
-          res (validate* instance new-schema new-ctx)
-          causes (:errors res)]
-      (cond-> res
-        causes
-        (-> (assoc :error {:message "Schema failed following ref" :causes causes})
-            (dissoc :errors))))))
-
 (defn- validate*
   [instance schema {:keys [options] :as ctx}]
 
-  (if (boolean? schema)
+  (cond
+    (boolean? schema)
     (cond-> {:instance instance
              :valid? schema}
       (false? schema) (assoc :errors [{:message "Schema is false"}]))
 
-    ;; Start with an ordered list of known of validation keywords,
-    ;; this order is from https://github.com/playlyfe/themis.
-    ;; Possible to override.
-    (let [keywords (or
-                    (:keywords options)
-                    ["default"
-                     "$schema"
-                     "$ref"
-                     "title"
-                     "description"
-                     "examples"
-                     "definitions"
-                     "type"
-                     "multipleOf"
-                     "minimum"
-                     "exclusiveMinimum"
-                     "maximum"
-                     "exclusiveMaximum"
-                     "minLength"
-                     "maxLength"
-                     "pattern"
-                     "format"
-                     "contentEncoding"
-                     "contentMediaType"
-                     "additionalItems"
-                     "items"
-                     "minItems"
-                     "maxItems"
-                     "uniqueItems"
-                     "contains"
-                     "required"
-                     "additionalProperties"
-                     "patternProperties"
-                     "properties"
-                     "minProperties"
-                     "maxProperties"
-                     "propertyNames"
-                     "dependencies"
-                     "allOf"
-                     "anyOf"
-                     "oneOf"
-                     "if"
-                     "then"
-                     "else"
-                     "not"
-                     "enum"
-                     "const"
-                     ])]
+    (or (object? schema) (nil? schema))
 
-      (let [ctx (assoc ctx :schema schema)
-            results (reduce
-                     (fn [acc kw]
-                       (let [[k v] (find schema kw)]
-                         (if k
-                           (if-let [result (process-keyword
-                                            kw v
-                                            #_instance ; original
-                                            (some-some? :instance acc) ; curated
-                                            (assoc ctx :acc acc))]
-                             (conj acc (assoc result :keyword kw))
-                             acc)
-                           acc)))
-                     (list {:instance instance :keyword :init})
-                     (distinct (concat keywords (keys schema))))]
-        (let [errors (reverse (keep :error results))]
-          (merge
-           {:instance (some-some? :instance results)
-            :valid? (empty? errors)}
-           (when (not-empty errors) {:errors (vec errors)})
-           (when (:journal? options) {:journal (reverse results)})))))))
+    (cond
+      (contains? schema "$ref")
+      (let [[new-schema new-ctx] (resolve-ref schema (:doc ctx) ctx)
+            res (validate* instance new-schema new-ctx)
+            causes (:errors res)]
+        (cond-> res
+          causes
+          (-> (assoc :error {:message "Schema failed following ref" :causes causes})
+              (dissoc :errors))))
+
+      ;; Start with an ordered list of known of validation keywords,
+      ;; this order is from https://github.com/playlyfe/themis.
+      ;; Possible to override.
+      :else
+      (let [keywords (or
+                      (:keywords options)
+                      ["default"
+                       "$schema"
+                       "title"
+                       "description"
+                       "examples"
+                       "definitions"
+                       "type"
+                       "multipleOf"
+                       "minimum"
+                       "exclusiveMinimum"
+                       "maximum"
+                       "exclusiveMaximum"
+                       "minLength"
+                       "maxLength"
+                       "pattern"
+                       "format"
+                       "contentEncoding"
+                       "contentMediaType"
+                       "additionalItems"
+                       "items"
+                       "minItems"
+                       "maxItems"
+                       "uniqueItems"
+                       "contains"
+                       "required"
+                       "additionalProperties"
+                       "patternProperties"
+                       "properties"
+                       "minProperties"
+                       "maxProperties"
+                       "propertyNames"
+                       "dependencies"
+                       "allOf"
+                       "anyOf"
+                       "oneOf"
+                       "if"
+                       "then"
+                       "else"
+                       "not"
+                       "enum"
+                       "const"
+                       ])]
+
+        (let [ctx (assoc ctx :schema schema)
+              results (reduce
+                       (fn [acc kw]
+                         (let [[k v] (find schema kw)]
+                           (if k
+                             (if-let [result (process-keyword
+                                              kw v
+                                              #_instance ; original
+                                              (some-some? :instance acc) ; curated
+                                              (assoc ctx :acc acc))]
+                               (conj acc (assoc result :keyword kw))
+                               acc)
+                             acc)))
+                       (list {:instance instance :keyword :init})
+                       (distinct (concat keywords (keys schema))))]
+          (let [errors (reverse (keep :error results))]
+            (merge
+             {:instance (some-some? :instance results)
+              :valid? (empty? errors)}
+             (when (not-empty errors) {:errors (vec errors)})
+             (when (:journal? options) {:journal (reverse results)}))))))))
 
 (defn validate
   "Instance should come first do support the Clojure thread-first
