@@ -9,7 +9,7 @@
    [clojure.java.io :as io] ;; TODO: Support cljs
    [clojure.test :refer [deftest is are]]
    [juxt.jsonschema.jsonpointer :as jsonpointer]
-   [juxt.jsonschema.core :refer [array? object? schema?]]
+   [juxt.jsonschema.core :refer [number? integer? array? object? schema?]]
    [juxt.jsonschema.schema :as schema]
    [juxt.jsonschema.resolve :as resolv]
    [juxt.jsonschema.regex :as regex]
@@ -82,15 +82,6 @@
 
 ;; TODO: These must check against JavaScript primitive types,
 ;; not Clojure/Java ones
-
-(defn number? [x]
-  (clojure.core/number? x))
-
-(defn integer? [x]
-  (or
-   (clojure.core/integer? x)
-   (when (number? x)
-     (zero? (mod x 1)))))
 
 (def type-preds
   {"null" nil?
