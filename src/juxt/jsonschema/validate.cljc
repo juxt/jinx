@@ -1,16 +1,28 @@
 ;; Copyright © 2019, JUXT LTD.
 
 (ns juxt.jsonschema.validate
-  (:refer-clojure :exclude [number? integer?])
+  (:refer-clojure :exclude [number? integer? array? object?])
   (:require
    [juxt.jsonschema.resolve :as resolv]
    [clojure.string :as str]
    [clojure.set :as set]
    [lambdaisland.uri :as uri]
    #?(:clj [cheshire.core :as cheshire])
-   #?(:clj [clojure.java.io :as io])
-   #?(:cljs [cljs-node-io.core :as io :refer [slurp spit]])))
+   #?(:clj [juxt.jsonschema.regex :as regex])
+   #?(:cljs [juxt.jsonschema.regex-cljc :as regex])
+   #?@(:cljs
+       [
+        [java.time :refer [Duration ZoneId LocalTime LocalDate DayOfWeek Month ZoneOffset]]
+        [java.time.format :refer [DateTimeFormatter]]]))
+  #?(:clj
+     (:import
+       [java.time Duration ZoneId LocalTime LocalDate DayOfWeek Month ZoneOffset]
+       [java.time.format DateTimeFormatter])))
 
+(defn read-json-string [json-str]
+  #?(:clj
+     (cheshire/parse-string json-str)
+     :cljs (js/JSON.parse json-str)))
 
 (declare validate*)
 
@@ -54,8 +66,8 @@
 (defn some-some?
   "We need a version of some that treats false as a value"
   [pred coll]
-    (when-let [s (seq coll)]
-      (if-some [i (pred (first s))] i (recur pred (next s)))))
+  (when-let [s (seq coll)]
+    (if-some [i (pred (first s))] i (recur pred (next s)))))
 
 (defn peek-through [ctx kw]
   (some-some? kw (:acc ctx)))
@@ -79,8 +91,7 @@
      {:annotation {:default default}}
      (if-not (some? instance)
        {:instance default
-        :default-used? true
-        }))))
+        :default-used? true}))))
 
 (defmethod process-keyword "examples" [k examples instance ctx]
   (when (array? examples)
@@ -122,43 +133,19 @@
       (if-let [pred (get type-preds type)]
         (when-not (pred instance)
           ;; TODO: We have an error, but we should first try to coerce - e.g. string->number, number->string
-
+          
           {:error
-           {:message (str "Instance of " (pr-str instance)" is not of type " (pr-str type))                             
+           {:message (str "Instance of " (pr-str instance) " is not of type " (pr-str type))
             :instance instance
-            :type type}}
-
-
-          #_(if (and (nil? instance) (contains? #{"object" "array"} type))
-
-              ;; There is no instance, which means no default.
-
-              ;; As a recovery step, we will try to default the instance here.
-
-              ;; Note: recovery steps should be made optional via options,and
-              ;; possibly possible to override with multimethods.
-
-
-              (case type
-                "object" {:instance {}
-                          :note "Implied value"}
-                "array" {:instance []
-                         :note "Implied value"})
-
-              {:error {:message (str "Instance of " (pr-str instance)" is not of type "  (pr-str type))
-                       :instance instance
-                       :type type}}))
+            :type type}})
 
         ;; Nil pred
         (throw (ex-info "Invalid schema detected" {})))
 
-      (array? type)
-      (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
+        (array? type)
+        (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
         ;; TODO: Find out _which_ type it matches, and instantiate _that_
-        {:error {:message (str "Value must be of type " (str/join " or " (pr-str type)))}}))
-
-
-    ))
+          {:error {:message (str "Value must be of type " (str/join " or " (pr-str type)))}}))))
 
 ;; TODO: Pass schema-path (and data-path) in a 'ctx' arg, not options
 ;; (keep 'options' constant). Demote 'doc' to 'ctx' entry, which
@@ -175,8 +162,8 @@
 (defmethod process-keyword "multipleOf" [k multiple-of instance ctx]
   (when (number? instance)
     (when-not
-        #?(:clj (= 0 (.compareTo (.remainder (bigdec instance) (bigdec multiple-of)) BigDecimal/ZERO))
-           :cljs [{:message "Not yet supported"}])
+     #?(:clj (= 0 (.compareTo (.remainder (bigdec instance) (bigdec multiple-of)) BigDecimal/ZERO))
+        :cljs [{:message "Not yet supported"}])
       {:error {:message "Failed multipleOf check"}})))
 
 (defmethod process-keyword "maximum" [k maximum instance ctx]
@@ -233,8 +220,7 @@
           (if (every? :valid? children)
             {:items children}
             {:error {:message "Not all items are valid"
-                     :bad-items (filter :errors children)}})
-          )
+                     :bad-items (filter :errors children)}}))
 
         (boolean? items)
         ;; TODO: Add a test for this
@@ -339,39 +325,7 @@
 
       (when-let [causes (:causes result)]
         {:error {:message "Some properties failed to validate against their schemas"
-                 :causes causes}})))
-
-  #_(when (object? instance)
-
-      (let [results
-            (into {}
-                  (for [[kw child] (merge
-                                    #_(:result-instance state) ; this is to fill out these
-                                    instance)
-                        :let [child (get instance kw)
-                              subschema (get properties kw)]]
-
-                    [kw
-                     (if subschema
-                       (-> (validate* subschema child (-> ctx
-                                                          (update :schema-path conj "properties" kw)
-                                                          (assoc :state {})))
-                           options)
-                       ;; else no subschema, this is an unknown property
-                       (if (get schema "additionalProperties")
-                         {:note "Unknown property not affecting validation"}
-                         {:error
-                          {:message (str "No additional properties allowed in this object: " kw)
-                           :keyword kw
-                           }}))]))]
-
-        {:state (-> state
-                    (assoc :properties results)
-                    #_(update :result-instance merge (into {} (for [[k v] results
-                                                                    :when (:valid? v)]
-                                                                [k (:result-instance v)])))
-                    (assoc :valid? (every? :valid? (vals results)))
-                    )})))
+                 :causes causes}}))))
 
 (defmethod process-keyword "patternProperties" [k pattern-properties instance ctx]
   (when (object? instance)
@@ -434,23 +388,7 @@
                   dependency-results)]
       (cond-> result
         (:error result)
-        (assoc-in [:error :message] "Some dependencies had validation errors")))
-
-
-    #_(let [children
-            (for [[propname dvalue] dependencies]
-              (when (contains? instance propname)
-                (cond
-                  (schema? dvalue)
-                  (validate* instance dvalue ctx)
-                  (array? dvalue)
-                  (when-not (every? #(contains? instance %) dvalue)
-                    {:dependency propname
-                     :errors [{:message "Not every dependency in instance"}]}))))]
-        (when (not-empty children)
-
-          (println "not empty children" children)
-          {:children children}))))
+        (assoc-in [:error :message] "Some dependencies had validation errors")))))
 
 (defmethod process-keyword "propertyNames" [k property-names instance ctx]
   (when (object? instance)
@@ -528,139 +466,142 @@
   ;; If format not known, succeed
   )
 
-(defmethod check-format "date-time" [fmt instance ctx]
+; (defmethod check-format "date-time" [fmt instance ctx]
+;   (when (string? instance)
+;     (try
+;       (.parse DateTimeFormatter/ISO_DATE_TIME instance)
+;       nil
+;       #?(:clj (catch Exception e
+;                 {:format fmt
+;                  :error {:message "Doesn't match date-time format"}})
+;         :cljs (catch js/Error e)))))
+
+; (defmethod check-format "date" [fmt instance ctx]
+;   (when (string? instance)
+;     (try
+;       (.parse DateTimeFormatter/ISO_LOCAL_DATE instance)
+;       nil
+;       #?(:clj (catch Exception e
+;                 {:format fmt
+;                  :error {:message "Doesn't match date format"}})
+;         :cljs (catch js/Error e)))))
+
+; (defmethod check-format "time" [fmt instance ctx]
+;   (when (string? instance)
+;     (try
+;       (.parse DateTimeFormatter/ISO_TIME instance)
+;       nil
+;       #?(:clj (catch Exception e
+;                 {:format fmt
+;                  :error {:message "Doesn't match time format"}})
+;         :cljs (catch js/Error e)))))
+
+(defmethod check-format "email" [fmt instance ctx]
   (when (string? instance)
-    (try
-      (.parse java.time.format.DateTimeFormatter/ISO_DATE_TIME instance)
-      nil
-      (catch Exception e
-        {:format fmt
-         :error {:message "Doesn't match date-time format"}}))))
+    (when-not (re-matches regex/addr-spec instance)
+      {:format fmt
+       :error {:message "Doesn't match email format"}})))
 
-(defmethod check-format "date" [fmt instance ctx]
+(defmethod check-format "idn-email" [fmt instance ctx]
   (when (string? instance)
-    (try
-      (.parse java.time.format.DateTimeFormatter/ISO_LOCAL_DATE instance)
-      nil
-      (catch Exception e
-        {:format fmt
-         :error {:message "Doesn't match date format"}}
-        ))))
+    (when-not (re-matches regex/iaddr-spec instance)
+      {:format fmt
+       :error {:message "Doesn't match idn-email format"}})))
 
-(defmethod check-format "time" [fmt instance ctx]
+(defmethod check-format "hostname" [fmt instance ctx]
   (when (string? instance)
-    (try
-      (.parse java.time.format.DateTimeFormatter/ISO_TIME instance)
-      nil
-      (catch Exception e
-        {:format fmt
-         :error {:message "Doesn't match time format"}}))))
+    ;; RFC 1034
+    (when-not (regex/hostname? instance)
+      {:format fmt
+       :error {:message "Doesn't match hostname format"}})))
 
-; (defmethod check-format "email" [fmt instance ctx]
-;   (when (string? instance)
-;     (when-not (re-matches regex/addr-spec instance)
-;       {:format fmt
-;        :error {:message "Doesn't match email format"}})))
+(defmethod check-format "idn-hostname" [fmt instance ctx]
+  (when (string? instance)
+    ;; RFC 5890
+    (when-not (regex/idn-hostname? instance)
+      {:format fmt
+       :error {:message "Doesn't match idn-hostname format"}})))
 
-; (defmethod check-format "idn-email" [fmt instance ctx]
-;   (when (string? instance)
-;     (when-not (re-matches regex/iaddr-spec instance)
-;       {:format fmt
-;        :error {:message "Doesn't match idn-email format"}})))
+(defmethod check-format "ipv4" [fmt instance ctx]
+  (when (string? instance)
+    ;; RFC2673, section 3.2, dotted-quad - also RFC 3986
+    (when-not (re-matches regex/IPv4address instance)
+      {:format fmt
+       :error {:message "Doesn't match ipv4 format"}})))
 
-; (defmethod check-format "hostname" [fmt instance ctx]
-;   (when (string? instance)
-;     ;; RFC 1034
-;     (when-not (regex/hostname? instance)
-;       {:format fmt
-;        :error {:message "Doesn't match hostname format"}})))
+(defmethod check-format "ipv6" [fmt instance ctx]
+  (when (string? instance)
+    ;; TODO: Improve this regex: RFC4291
+    (when-not (re-matches regex/IPv6address instance)
+      {:format fmt
+       :error {:message "Doesn't match ipv6 format"}})))
 
-; (defmethod check-format "idn-hostname" [fmt instance ctx]
-;   (when (string? instance)
-;     ;; RFC 5890
-;     (when-not (regex/idn-hostname? instance)
-;       {:format fmt
-;        :error {:message "Doesn't match idn-hostname format"}})))
+(defmethod check-format "uri" [fmt instance ctx]
+  (when (string? instance)
+    ;; RFC3986
+    (when-not (re-matches regex/URI instance)
+      {:format fmt
+       :error {:message "Doesn't match URI format"}})))
 
-; (defmethod check-format "ipv4" [fmt instance ctx]
-;   (when (string? instance)
-;     ;; RFC2673, section 3.2, dotted-quad - also RFC 3986
-;     (when-not (re-matches regex/IPv4address instance)
-;       {:format fmt
-;        :error {:message "Doesn't match ipv4 format"}})))
+(defmethod check-format "uri-reference" [fmt instance ctx]
+  (when (string? instance)
+    ;; TODO: Improve this regex: RFC3986
+    (when-not (or (re-matches regex/URI instance)
+                  (re-matches regex/relative-ref instance))
+      {:format fmt
+       :error {:message "Doesn't match URI-reference format"}})))
 
-; (defmethod check-format "ipv6" [fmt instance ctx]
-;   (when (string? instance)
-;     ;; TODO: Improve this regex: RFC4291
-;     (when-not (re-matches regex/IPv6address instance)
-;       {:format fmt
-;        :error {:message "Doesn't match ipv6 format"}})))
+(defmethod check-format "iri" [fmt instance ctx]
+  (when (string? instance)
+    ;; RFC3987
+    (when-not (re-matches regex/IRI instance)
+      {:format fmt
+       :error {:message "Doesn't match IRI format"}})))
 
-; (defmethod check-format "uri" [fmt instance ctx]
-;   (when (string? instance)
-;     ;; RFC3986
-;     (when-not (re-matches regex/URI instance)
-;       {:format fmt
-;        :error {:message "Doesn't match URI format"}})))
+(defmethod check-format "iri-reference" [fmt instance ctx]
+  (when (string? instance)
+    ;; RFC3987
+    (when-not (or (re-matches regex/IRI instance)
+                  (re-matches regex/irelative-ref instance))
+      {:format fmt
+       :error {:message "Doesn't match IRI-reference format"}})))
 
-; (defmethod check-format "uri-reference" [fmt instance ctx]
-;   (when (string? instance)
-;     ;; TODO: Improve this regex: RFC3986
-;     (when-not (or (re-matches regex/URI instance)
-;                   (re-matches regex/relative-ref instance))
-;       {:format fmt
-;        :error {:message "Doesn't match URI-reference format"}})))
+(defmethod check-format "uri-template" [fmt instance ctx]
+  (when (string? instance)
+    ;; TODO: Improve this regex: RFC6570
+    (when-not (re-matches #".*" instance)
+      {:format fmt
+       :error {:message "Doesn't match uri-template format"}})))
 
-; (defmethod check-format "iri" [fmt instance ctx]
-;   (when (string? instance)
-;     ;; RFC3987
-;     (when-not (re-matches regex/IRI instance)
-;       {:format fmt
-;        :error {:message "Doesn't match IRI format"}})))
+(defmethod check-format "json-pointer" [fmt instance ctx]
+  (when (string? instance)
+    ;; RFC6901
+    (when-not (re-matches regex/json-pointer instance)
+      {:format fmt
+       :error {:message "Doesn't match json-pointer format"}})))
 
-; (defmethod check-format "iri-reference" [fmt instance ctx]
-;   (when (string? instance)
-;     ;; RFC3987
-;     (when-not (or (re-matches regex/IRI instance)
-;                   (re-matches regex/irelative-ref instance))
-;       {:format fmt
-;        :error {:message "Doesn't match IRI-reference format"}})))
+(defmethod check-format "relative-json-pointer" [fmt instance ctx]
+  (when (string? instance)
+    (when-not (re-matches regex/relative-json-pointer instance)
+      {:format fmt
+       :error {:message "Doesn't match relative-json-pointer format"}})))
 
-; (defmethod check-format "uri-template" [fmt instance ctx]
-;   (when (string? instance)
-;     ;; TODO: Improve this regex: RFC6570
-;     (when-not (re-matches #".*" instance)
-;       {:format fmt
-;        :error {:message "Doesn't match uri-template format"}})))
+(defmethod check-format "regex" [fmt instance ctx]
+  (when (string? instance)
+    (cond
+      ;; (This might be cheating just to get past the test suite)
+      (.contains instance "\\Z")
+      {:format fmt
+       :error {:message "Must not contain \\Z anchor from .NET"}}
 
-; (defmethod check-format "json-pointer" [fmt instance ctx]
-;   (when (string? instance)
-;     ;; RFC6901
-;     (when-not (re-matches regex/json-pointer instance)
-;       {:format fmt
-;        :error {:message "Doesn't match json-pointer format"}})))
-
-; (defmethod check-format "relative-json-pointer" [fmt instance ctx]
-;   (when (string? instance)
-;     (when-not (re-matches regex/relative-json-pointer instance)
-;       {:format fmt
-;        :error {:message "Doesn't match relative-json-pointer format"}})))
-
-; (defmethod check-format "regex" [fmt instance ctx]
-;   (when (string? instance)
-;     (cond
-;       ;; (This might be cheating just to get past the test suite)
-;       (.contains instance "\\Z")
-;       {:format fmt
-;        :error {:message "Must not contain \\Z anchor from .NET"}}
-
-;       :else
-;       (try
-;         (re-pattern instance)
-;         nil
-;         (catch Exception e
-;           {:format fmt
-;            :error {:message "Illegal regex"}})))))
+      :else
+      (try
+        (re-pattern instance)
+        nil
+        #?(:clj (catch Exception e
+                {:format fmt
+                 :error {:message "Illegal regex"}})
+        :cljs (catch js/Error e))))))
 
 (defmethod process-keyword "format" [_ format instance ctx]
   ;; TODO: This is optional, so should be possible to disable via
@@ -685,8 +626,10 @@
   (when (string? instance)
     (try
       {:instant (decode-content content-encoding instance)}
-      (catch Exception e
-        {:error {:message "Not base64"}}))))
+      nil
+        #?(:clj (catch Exception e
+                {:error {:message "Not base64"}})
+        :cljs (catch js/Error e)))))
 
 (defmethod process-keyword "contentMediaType" [k content-media-type instance {:keys [schema] :as ctx}]
   ;; TODO: This is optional, so should be possible to disable via
@@ -703,7 +646,7 @@
       (case content-media-type
         "application/json"
         (try
-          {:instant (cheshire/parse-string content)}
+          {:instant (read-json-string content)}
           (catch Exception e
             {:error {:message "Instance is not application/json"}})))
       {:error {:message "Unable to decode content"}})))
@@ -711,7 +654,7 @@
 (defn resolve-ref [ref-object doc ctx]
   (assert ref-object)
 
-  (let [ ;; "The value of the "$ref" property MUST be a URI Reference."
+  (let [;; "The value of the "$ref" property MUST be a URI Reference."
         ;; -- [CORE Section 8.3]
         base-uri (get (meta ref-object) :base-uri)
         ref (some-> (get ref-object "$ref") java.net.URLDecoder/decode)
@@ -727,94 +670,86 @@
                       base-uri (assoc :base-uri base-uri)
                       doc (assoc :doc doc))]))))
 
-(defmethod process-keyword "$ref" [_ ref instance {:keys [schema doc] :as ctx}]
-  (when (object? schema)
-    (let [[new-schema new-ctx] (resolve-ref schema doc ctx)
-          res (validate* instance new-schema new-ctx)
-          causes (:errors res)]
-      (cond-> res
-        causes
-        (-> (assoc :error {:message "Schema failed following ref" :causes causes})
-            (dissoc :errors))))))
-
 (defn- validate*
   [instance schema {:keys [options] :as ctx}]
 
-  (if (boolean? schema)
+  (cond
+    (boolean? schema)
     (cond-> {:instance instance
              :valid? schema}
       (false? schema) (assoc :errors [{:message "Schema is false"}]))
 
-    ;; Start with an ordered list of known of validation keywords,
-    ;; this order is from https://github.com/playlyfe/themis.
-    ;; Possible to override.
-    (let [keywords (or
-                    (:keywords options)
-                    ["default"
-                     "$schema"
-                     "$ref"
-                     "title"
-                     "description"
-                     "examples"
-                     "definitions"
-                     "type"
-                     "multipleOf"
-                     "minimum"
-                     "exclusiveMinimum"
-                     "maximum"
-                     "exclusiveMaximum"
-                     "minLength"
-                     "maxLength"
-                     "pattern"
-                     "format"
-                     "contentEncoding"
-                     "contentMediaType"
-                     "additionalItems"
-                     "items"
-                     "minItems"
-                     "maxItems"
-                     "uniqueItems"
-                     "contains"
-                     "required"
-                     "additionalProperties"
-                     "patternProperties"
-                     "properties"
-                     "minProperties"
-                     "maxProperties"
-                     "propertyNames"
-                     "dependencies"
-                     "allOf"
-                     "anyOf"
-                     "oneOf"
-                     "if"
-                     "then"
-                     "else"
-                     "not"
-                     "enum"
-                     "const"
-                     ])]
+    (or (object? schema) (nil? schema))
 
-      (let [ctx (assoc ctx :schema schema)
-            results (reduce
-                     (fn [acc kw]
-                       (let [[k v] (find schema kw)]
-                         (if k
-                           (if-let [result (process-keyword
-                                            kw v
-                                            #_instance ; original
-                                            (some-some? :instance acc) ; curated
-                                            (assoc ctx :acc acc))]
-                             (conj acc (assoc result :keyword kw))
-                             acc)
-                           acc)))
-                     (list {:instance instance :keyword :init})
-                     (distinct (concat keywords (keys schema))))]
-        (let [errors (reverse (keep :error results))]
-          (merge
-           {:instance (some-some? :instance results)
-            :valid? (empty? errors)}
-           (when (not-empty errors) {:errors (vec errors)})
-           (when (:journal? options) {:journal (reverse results)})))))))
+    (cond
+      (contains? schema "$ref")
+      (let [[new-schema new-ctx] (resolve-ref schema (:doc ctx) ctx)
+            res (validate* instance new-schema new-ctx)
+            causes (:errors res)]
+        (cond-> res
+          causes
+          (-> (assoc :error {:message "Schema failed following ref" :causes causes})
+              (dissoc :errors))))
+
+      ;; Start with an ordered list of known of validation keywords,
+      ;; this order is from https://github.com/playlyfe/themis.
+      ;; Possible to override.
+      :else
+      (let [keywords
+            (or
+             (:keywords options)
+             ["$schema"
+              "definitions"
+
+              ;; Process annotations first as these can affect the instance
+              "title"
+              "description"
+              "default"
+              "readOnly" "writeOnly"
+              "examples"
+
+              ;; 6.1.  Validation Keywords for Any Instance Type
+              "type" "enum" "const"
+              ;; 6.2.  Validation Keywords for Numeric Instances (number and integer)
+              "multipleOf" "maximum" "exclusiveMinimum" "minimum" "exclusiveMaximum"
+              ;; 6.3.  Validation Keywords for Strings
+              "maxLength" "minLength" "pattern"
+              ;; 6.4.  Validation Keywords for Arrays
+              "items" "additionalItems" "maxItems" "minItems" "uniqueItems" "contains"
+              ;; 6.5.  Validation Keywords for Objects
+              "maxProperties" "minProperties" "required" "properties"
+              "patternProperties" "additionalProperties" "dependencies"
+              "propertyNames"
+              ;; 6.6.  Keywords for Applying Subschemas Conditionally
+              "if" "then" "else"
+              ;; 6.7.  Keywords for Applying Subschemas With Boolean Logic
+              "allOf" "anyOf" "oneOf" "not"
+              ;; 7.  Semantic Validation With "format"
+              "format"
+              ;; 8.  String-Encoding Non-JSON Data
+              "contentEncoding" "contentMediaType"])]
+
+        (let [ctx (assoc ctx :schema schema)
+              results (reduce
+                       (fn [acc kw]
+                         (let [[k v] (find schema kw)]
+                           (if k
+                             (if-let [result (process-keyword
+                                              kw v
+                                              #_instance ; original
+                                              (some-some? :instance acc) ; curated
+                                              (assoc ctx :acc acc))]
+                               (conj acc (assoc result :keyword kw))
+                               acc)
+                             acc)))
+                       (list {:instance instance :keyword :init})
+                       (distinct (concat keywords (keys schema))))]
+          (let [errors (reverse (keep :error results))]
+            (merge
+             {:instance (some-some? :instance results)
+              :valid? (empty? errors)}
+             (when (not-empty errors) {:errors (vec errors)})
+             (when (:journal? options) {:journal (reverse results)}))))))))
 
 (defn validate
   "Instance should come first do support the Clojure thread-first

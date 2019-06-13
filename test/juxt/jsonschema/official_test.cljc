@@ -11,13 +11,22 @@
                       [juxt.jsonschema.resolve :as resolv]
                       [juxt.jsonschema.schema :as schema])]
       :cljs [(:require [cljs-node-io.core :as io :refer [slurp]]
-                       [cljs.test :refer-macros [test deftest is testing run-tests]]
+                       [cljs.test :refer-macros [ deftest is testing run-tests]]
                        [juxt.jsonschema.validate :refer [validate]]
                        [juxt.jsonschema.schema :refer [schema]]
                        [juxt.jsonschema.resolve :as resolv]
                        [juxt.jsonschema.schema :as schema])]))
 
-(def TESTS-ROOT (io/file (System/getenv "JUXT_REPOS") "JSON-Schema-Test-Suite"))
+(defn- env [s]
+  #?(:clj (System/getenv (str s)))
+  #?(:cljs (aget js/process.env s)))
+
+(defn read-json-stream [json-str]
+  #?(:clj
+     (json/parse-stream (io/reader json-str))
+     :cljs (js/JSON.parse json-str)))
+
+(def TESTS-ROOT (io/file (env "JUXT_REPOS") "JSON-Schema-Test-Suite"))
 
 (def TESTS-DIR (io/file TESTS-ROOT "tests/draft7"))
 
@@ -56,7 +65,7 @@
         ;;         :let [testfile (io/file tests-dir filename)]
 
         :when (.isFile testfile)
-        :let [objects (json/parse-stream (io/reader testfile))]
+        :let [objects (read-json-stream testfile)]
         {:strs [schema tests description]} objects
         ;; Any required parsing of the schema, do it now for performance
         :let [test-group-description description]

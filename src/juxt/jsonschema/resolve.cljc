@@ -6,8 +6,8 @@
    [clojure.string :as str]
    #?@(:clj [[cheshire.core :as cheshire]
              [clojure.java.io :as io]])
-   [juxt.jsonschema.jsonpointer :as jsonpointer]
-   #?(:cljs (:require-macros [juxt.jsonschema.resolve :refer [slurp-resource ]]))))
+   [juxt.jsonschema.jsonpointer :as jsonpointer])
+  #?(:cljs (:require-macros [juxt.jsonschema.resolve :refer [slurp-resource]])))
 
 (defmulti resolve-uri (fn [k uri] (cond (keyword? k) k (coll? k) (first k))))
 
@@ -16,7 +16,7 @@
      (cheshire/parse-string json-str)
      :cljs (js/JSON.parse json-str)))
 
-(defn read-json-string-rdr [json-str]
+(defn read-json-stream [json-str]
   #?(:clj
      (cheshire/parse-stream (io/reader json-str))
      :cljs (js/JSON.parse json-str)))
@@ -39,7 +39,7 @@
 (extend-protocol DefaultResolverDereferencer
   java.net.URL
   (deref-val [res k]
-    (read-json-string-rdr res))
+    (read-json-stream res))
 
   #?(:clj Boolean :cljs boolean (deref-val [res k] res))
 
@@ -50,7 +50,7 @@
   (deref-val [f k] (deref-val (f k) k))
 
   java.io.File
-  (deref-val [file k] (read-json-string-rdr file))
+  (deref-val [file k] (read-json-stream file))
   )
 
 (defmethod resolve-uri ::default-resolver [[_ m] ^String uri]
@@ -92,4 +92,4 @@
            doc
            docref]
 
-          (throw (ex-info (format "Failed to resolve uri: %s" docref) {:uri docref})))))))
+          (throw (ex-info (str "Failed to resolve uri: " docref) {:uri docref})))))))
