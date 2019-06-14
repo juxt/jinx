@@ -41,8 +41,8 @@
   (deref-val [res k]
     (read-json-stream res))
 
-  #?(:clj Boolean :cljs boolean (deref-val [res k] res))
-
+  Boolean (deref-val [res k] res)
+  
   clojure.lang.IPersistentMap
   (deref-val [res k] res)
 

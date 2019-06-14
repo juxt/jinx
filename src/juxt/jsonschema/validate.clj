@@ -7,22 +7,14 @@
    [clojure.string :as str]
    [clojure.set :as set]
    [lambdaisland.uri :as uri]
-   #?(:clj [cheshire.core :as cheshire])
-   #?(:clj [juxt.jsonschema.regex :as regex])
-   #?(:cljs [juxt.jsonschema.regex-cljc :as regex])
-   #?@(:cljs
-       [
-        [java.time :refer [Duration ZoneId LocalTime LocalDate DayOfWeek Month ZoneOffset]]
-        [java.time.format :refer [DateTimeFormatter]]]))
-  #?(:clj
-     (:import
+   [cheshire.core :as cheshire]
+   [juxt.jsonschema.regex :as regex])
+  (:import
        [java.time Duration ZoneId LocalTime LocalDate DayOfWeek Month ZoneOffset]
-       [java.time.format DateTimeFormatter])))
+       [java.time.format DateTimeFormatter]))
 
 (defn read-json-string [json-str]
-  #?(:clj
-     (cheshire/parse-string json-str)
-     :cljs (js/JSON.parse json-str)))
+     (cheshire/parse-string json-str))
 
 (declare validate*)
 
@@ -162,8 +154,7 @@
 (defmethod process-keyword "multipleOf" [k multiple-of instance ctx]
   (when (number? instance)
     (when-not
-     #?(:clj (= 0 (.compareTo (.remainder (bigdec instance) (bigdec multiple-of)) BigDecimal/ZERO))
-        :cljs [{:message "Not yet supported"}])
+      (= 0 (.compareTo (.remainder (bigdec instance) (bigdec multiple-of)) BigDecimal/ZERO))
       {:error {:message "Failed multipleOf check"}})))
 
 (defmethod process-keyword "maximum" [k maximum instance ctx]
@@ -195,8 +186,7 @@
 (defmethod process-keyword "minLength" [k min-length instance ctx]
   (when (string? instance)
     (when (<
-           #?(:clj (.codePointCount instance 0 (.length instance))
-              :cljs (count instance))
+           (.codePointCount instance 0 (.length instance))
            min-length)
       {:error {:message "String is too short"}})))
 
@@ -466,35 +456,33 @@
   ;; If format not known, succeed
   )
 
-; (defmethod check-format "date-time" [fmt instance ctx]
-;   (when (string? instance)
-;     (try
-;       (.parse DateTimeFormatter/ISO_DATE_TIME instance)
-;       nil
-;       #?(:clj (catch Exception e
-;                 {:format fmt
-;                  :error {:message "Doesn't match date-time format"}})
-;         :cljs (catch js/Error e)))))
+(defmethod check-format "date-time" [fmt instance ctx]
+  (when (string? instance)
+       (try
+         (.parse java.time.format.DateTimeFormatter/ISO_DATE_TIME instance)
+         nil
+         (catch Exception e
+           {:format fmt
+            :error {:message "Doesn't match date-time format"}}))))
 
-; (defmethod check-format "date" [fmt instance ctx]
-;   (when (string? instance)
-;     (try
-;       (.parse DateTimeFormatter/ISO_LOCAL_DATE instance)
-;       nil
-;       #?(:clj (catch Exception e
-;                 {:format fmt
-;                  :error {:message "Doesn't match date format"}})
-;         :cljs (catch js/Error e)))))
+(defmethod check-format "date" [fmt instance ctx]
+  (when (string? instance)
+       (try
+         (.parse java.time.format.DateTimeFormatter/ISO_LOCAL_DATE instance)
+         nil
+         (catch Exception e
+           {:format fmt
+            :error {:message "Doesn't match date format"}}))))
+       
 
-; (defmethod check-format "time" [fmt instance ctx]
-;   (when (string? instance)
-;     (try
-;       (.parse DateTimeFormatter/ISO_TIME instance)
-;       nil
-;       #?(:clj (catch Exception e
-;                 {:format fmt
-;                  :error {:message "Doesn't match time format"}})
-;         :cljs (catch js/Error e)))))
+(defmethod check-format "time" [fmt instance ctx]
+  (when (string? instance)
+       (try
+         (.parse java.time.format.DateTimeFormatter/ISO_TIME instance)
+         nil
+         (catch Exception e
+           {:format fmt
+            :error {:message "Doesn't match time format"}}))))
 
 (defmethod check-format "email" [fmt instance ctx]
   (when (string? instance)
@@ -593,15 +581,14 @@
       (.contains instance "\\Z")
       {:format fmt
        :error {:message "Must not contain \\Z anchor from .NET"}}
-
       :else
       (try
         (re-pattern instance)
         nil
-        #?(:clj (catch Exception e
-                {:format fmt
-                 :error {:message "Illegal regex"}})
-        :cljs (catch js/Error e))))))
+        (catch Exception e
+          {:format fmt   
+           :error {:message "Illegal regex"}})))))
+
 
 (defmethod process-keyword "format" [_ format instance ctx]
   ;; TODO: This is optional, so should be possible to disable via
@@ -627,9 +614,8 @@
     (try
       {:instant (decode-content content-encoding instance)}
       nil
-        #?(:clj (catch Exception e
-                {:error {:message "Not base64"}})
-        :cljs (catch js/Error e)))))
+        (catch Exception e
+          {:error {:message "Not base64"}}))))
 
 (defmethod process-keyword "contentMediaType" [k content-media-type instance {:keys [schema] :as ctx}]
   ;; TODO: This is optional, so should be possible to disable via
@@ -639,17 +625,17 @@
   ;; choose to do so, they SHOULD offer an option to disable
   ;; validation for these keywords."
   (when (string? instance)
-    (if-let [content (try
-                       (decode-content (get schema "contentEncoding") instance)
-                       (catch Exception e nil))]
-      ;; TODO: Open for extension with a multimethod
-      (case content-media-type
-        "application/json"
-        (try
-          {:instant (read-json-string content)}
-          (catch Exception e
-            {:error {:message "Instance is not application/json"}})))
-      {:error {:message "Unable to decode content"}})))
+       (if-let [content (try
+                          (decode-content (get schema "contentEncoding") instance)
+                          (catch Exception e nil))]
+        ;; TODO: Open for extension with a multimethod
+         (case content-media-type
+           "application/json"
+           (try
+             {:instant (read-json-string content)}
+             (catch Exception e
+               {:error {:message "Instance is not application/json"}})))
+         {:error {:message "Unable to decode content"}})))
 
 (defn resolve-ref [ref-object doc ctx]
   (assert ref-object)
