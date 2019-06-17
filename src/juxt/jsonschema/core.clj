@@ -1,5 +1,6 @@
 (ns juxt.jsonschema.core
-  (:refer-clojure :exclude [number? integer?]))
+  (:refer-clojure :exclude [number? integer?])
+  (:require [juxt.jsonschema.regex :as regex]))
 
 (defn number? [x]
   (clojure.core/number? x))
@@ -18,3 +19,8 @@
 
 (defn schema? [x]
   (or (object? x) (boolean? x)))
+
+(defn regex? [x]
+  ;; TODO: Check is x is a valid regular expression "according to the
+  ;; ECMA 262 regular expression dialect"
+  (string? x))
