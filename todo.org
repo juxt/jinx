@@ -75,4 +75,8 @@ file:/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/
 ** TODO This needs to be implemented for both
 - [ ] schema validation (pattern) and
 - [ ] instance format validation.
+<<<<<<< HEAD
 ** TODO Use CircleCI (or TravisCI) to automatically run tests
+=======
+** TODO Use CircleCI (or TravisCI) to automatically run tests
+>>>>>>> 1660420... intermediate push - clj tests working, regex changes

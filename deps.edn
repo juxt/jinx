@@ -6,17 +6,16 @@
  :aliases
  {:dev
   {:extra-deps
-   {com.bhauman/figwheel-main {:mvn/version "0.1.9"}
+   {com.bhauman/figwheel-main {:mvn/version "0.2.0"}
     com.bhauman/cljs-test-display {:mvn/version "0.1.1"}
-    org.clojure/clojurescript {:mvn/version "1.10.238"}}
+    org.clojure/clojurescript {:mvn/version "1.10.520"}}
 
    :extra-paths ["dev/src" "test"]
    :jvm-opts ["-Dclojure.spec.compile-asserts=true"]}
   :test-cljs {:extra-paths ["test" "cljs-test-runner-out/gen"]
-              :extra-deps {org.clojure/clojurescript {:mvn/version "1.10.238"}
-                     ;       cljs-node-io {:mvn/version "1.1.2"}
+              :extra-deps {org.clojure/clojurescript {:mvn/version "1.10.520"}
                            olical/cljs-test-runner {:mvn/version "3.5.0"}}
-              :main-opts   ["-m" "cljs-test-runner.main" "-c" "test/cljs-test-opts.edn -x chrome-headless"]}
+              :main-opts   ["-m" "cljs-test-runner.main" "-c" "test/cljs-test-opts.edn"]}
   :test {:extra-paths ["test"]
          :extra-deps {com.cognitect/test-runner {:git/url "https://github.com/cognitect-labs/test-runner.git"
                                                  :sha "028a6d41ac9ac5d5c405dfc38e4da6b4cc1255d5"}}
