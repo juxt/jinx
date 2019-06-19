@@ -7,6 +7,7 @@
    #?@(:clj [[cheshire.core :as cheshire]
              [clojure.java.io :as io]])
    [juxt.jsonschema.jsonpointer :as jsonpointer])
+  #?(:cljs (:import goog.Uri))
   #?(:cljs (:require-macros [juxt.jsonschema.resolve :refer [slurp-resource]])))
 
 (defmulti resolve-uri (fn [k uri] (cond (keyword? k) k (coll? k) (first k))))
@@ -21,8 +22,8 @@
      (cheshire/parse-stream (io/reader json-str))
      :cljs (js/JSON.parse json-str)))
 
-(defmacro slurp-resource [resource]
-  (slurp (str "resources/" resource)))
+#?(:clj (defmacro slurp-resource [resource]
+          (clojure.core/slurp (str "resources/" resource))))
 
 ;; Built-in
 
@@ -37,22 +38,19 @@
   (deref-val [_ k] "Dereference"))
 
 (extend-protocol DefaultResolverDereferencer
-  java.net.URL
-  (deref-val [res k]
-    (read-json-stream res))
+  #?(:clj java.net.URL :cljs goog.Uri) (deref-val [res k] (read-json-stream res))
 
-  Boolean (deref-val [res k] res)
+  #?(:clj Boolean :cljs boolean) (deref-val [res k] res)
   
-  clojure.lang.IPersistentMap
-  (deref-val [res k] res)
-
-  clojure.lang.Fn
+  #?(:clj  clojure.lang.IPersistentMap :cljs cljs.core.ICollection)
+     (deref-val [res k] res)
+  
+  #?(:clj clojure.lang.Fn :cljs function)
   (deref-val [f k] (deref-val (f k) k))
 
-  java.io.File
-  (deref-val [file k] (read-json-stream file))
+  #?(:clj java.io.File :cljs object)
+     (deref-val [file k] (read-json-stream file))
   )
-
 (defmethod resolve-uri ::default-resolver [[_ m] ^String uri]
   (when-let
       [[k val]

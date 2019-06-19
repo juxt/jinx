@@ -245,7 +245,7 @@
            "properties" {"foo" {"type" "object"
                                 "properties" {"bar" {"type" "string"}}}}}))))
 
-(deftest properties-test
+(deftest properties-test1
   (is (= [true {"foo" "bar"}]
          (run-validate
           {}

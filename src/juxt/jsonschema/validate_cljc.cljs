@@ -148,9 +148,9 @@
     {:error {:message (str "Value " instance " must be equal to const "  const)}}))
 
 (defmethod process-keyword "multipleOf" [k multiple-of instance ctx]
-  (when (number? instance)
+  (when-not (= 0 (rem instance multiple-of))
     [{:message "Not yet supported"}]
-      {:error {:message "Failed multipleOf check"}}))
+    {:error {:message "Failed multipleOf check"}}))
 
 (defmethod process-keyword "maximum" [k maximum instance ctx]
   (when (number? instance)
@@ -174,8 +174,7 @@
 
 (defmethod process-keyword "maxLength" [k max-length instance ctx]
   (when (string? instance)
-    ;; See https://github.com/networknt/json-schema-validator/issues/4
-    (when (> (.codePointCount instance 0 (.length instance)) max-length)
+    (when (> (count instance) max-length)
       {:error {:message "String is too long"}})))
 
 (defmethod process-keyword "minLength" [k min-length instance ctx]
@@ -452,18 +451,18 @@
 (defmethod check-format "date-time" [fmt instance ctx]
   (when (string? instance)
         (when-not (re-find  #"(?i)^\d\d\d\d-[0-1]\d-[0-3]\d[t\s](?:[0-2]\d:[0-5]\d:[0-5]\d|23:59:60)(?:\.\d+)?(?:z|[+-]\d\d:\d\d)$" instance)
-               (throw js/Error. "Doesn't match date-time format"))))
+               (throw (js/Error. "Doesn't match date-time format")))))
 
 
 (defmethod check-format "date" [fmt instance ctx]
   (when (string? instance)
        (when-not (re-find  #"^(\d\d\d\d)-(\d\d)-(\d\d)$" instance)
-               (throw js/Error. "Doesn't match time format"))))
+               (throw (js/Error. "Doesn't match time format")))))
 
 (defmethod check-format "time" [fmt instance ctx]
   (when (string? instance)
        (when-not (re-find  #"(?i)^(\d\d):(\d\d):(\d\d)(\.\d+)?(z|[+-]\d\d:\d\d)?$" instance)
-               (throw js/Error. "Doesn't match time format"))))
+               (throw (js/Error. "Doesn't match time format")))))
 
 (defmethod check-format "email" [fmt instance ctx]
   (when (string? instance)
@@ -567,7 +566,7 @@
       (try
         (re-pattern instance)
         nil
-        (catch js/Error e)))))
+        (catch :default e)))))
 
 (defmethod process-keyword "format" [_ format instance ctx]
   ;; TODO: This is optional, so should be possible to disable via
@@ -579,7 +578,7 @@
 (defn decode-content [content-encoding instance]
   ;; TODO: Open for extension with a multimethod
   (case content-encoding
-    "base64" (String. (.decode (java.util.Base64/getDecoder) instance))
+    "base64" "";(String. (.decode (java.util.Base64/getDecoder) instance))
     nil instance))
 
 (defmethod process-keyword "contentEncoding" [k content-encoding instance ctx]
@@ -593,7 +592,7 @@
     (try
       {:instant (decode-content content-encoding instance)}
       nil
-    (catch js/Error e))))
+    (catch :default e))))
 
 ; (defmethod process-keyword "contentMediaType" [k content-media-type instance {:keys [schema] :as ctx}]
 ;   ;; TODO: This is optional, so should be possible to disable via
