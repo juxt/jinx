@@ -51,9 +51,6 @@
     (when-let [s (seq coll)]
       (if-some [i (pred (first s))] i (recur pred (next s)))))
 
-(defn peek-through [ctx kw]
-  (some-some? kw (:acc ctx)))
-
 ;; We test against the instance first. We try to solve (via defaults)
 ;; and build up the instantiation, and possibly explain our actions
 ;; via the journal. If we can't solve, we throw errors. Errors are
@@ -68,13 +65,11 @@
     {:annotation {:description description}}))
 
 (defmethod process-keyword "default" [k default instance ctx]
-  (let [instance (peek-through ctx :instance)]
-    (merge
-     {:annotation {:default default}}
-     (if-not (some? instance)
-       {:instance default
-        :default-used? true
-        }))))
+  (merge
+   {:annotation {:default default}}
+   (if-not (some? instance)
+     {:instance default
+      :default-used? true})))
 
 (defmethod process-keyword "examples" [k examples instance ctx]
   (when (array? examples)
@@ -100,28 +95,27 @@
     ;; Note: recovery steps should be made optional via options,and
     ;; possibly possible to override with multimethods.
 
-(defmethod process-keyword "type" [_ type _ ctx]
-  (let [instance (peek-through ctx :instance)]
-    (cond
-      (string? type)
-      (if-let [pred (get type-preds type)]
-        (when-not (pred instance)
-          ;; TODO: We have an error, but we should first try to coerce - e.g. string->number, number->string
+(defmethod process-keyword "type" [_ type instance ctx]
+  (cond
+    (string? type)
+    (if-let [pred (get type-preds type)]
+      (when-not (pred instance)
+        ;; TODO: We have an error, but we should first try to coerce - e.g. string->number, number->string
 
-          {:error
-           {:message (format "Instance of %s is not of type %s"
-                             (pr-str instance)
-                             (pr-str type))
-            :instance instance
-            :type type}})
+        {:error
+         {:message (format "Instance of %s is not of type %s"
+                           (pr-str instance)
+                           (pr-str type))
+          :instance instance
+          :type type}})
 
-        ;; Nil pred
-        (throw (IllegalStateException. "Invalid schema detected")))
+      ;; Nil pred
+      (throw (IllegalStateException. "Invalid schema detected")))
 
-      (array? type)
-      (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
-        ;; TODO: Find out _which_ type it matches, and instantiate _that_
-        {:error {:message (format "Value must be of type %s" (str/join " or " (pr-str type)))}}))))
+    (array? type)
+    (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
+      ;; TODO: Find out _which_ type it matches, and instantiate _that_
+      {:error {:message (format "Value must be of type %s" (str/join " or " (pr-str type)))}})))
 
 ;; TODO: Pass schema-path (and data-path) in a 'ctx' arg, not options
 ;; (keep 'options' constant). Demote 'doc' to 'ctx' entry, which
@@ -184,35 +178,34 @@
 ;; TODO: Show paths in error messages
 ;; TODO: Improve error messages, possibly copying Ajv or org.everit json-schema
 
-(defmethod process-keyword "items" [_ items _ {:keys [schema state options] :as ctx}]
-  (let [instance (peek-through ctx :instance)]
-    (when (array? instance)
-      (cond
-        (object? items)
-        (let [children
-              (for [[idx child-instance] (map-indexed vector instance)]
-                (assoc (validate* child-instance items ctx)
-                       :index idx))]
-          (if (every? :valid? children)
-            {:items children}
-            {:error {:message "Not all items are valid"
-                     :bad-items (filter :errors children)}}))
+(defmethod process-keyword "items" [_ items instance {:keys [schema state options] :as ctx}]
+  (when (array? instance)
+    (cond
+      (object? items)
+      (let [children
+            (for [[idx child-instance] (map-indexed vector instance)]
+              (assoc (validate* child-instance items ctx)
+                     :index idx))]
+        (if (every? :valid? children)
+          {:items children}
+          {:error {:message "Not all items are valid"
+                   :bad-items (filter :errors children)}}))
 
-        (boolean? items)
-        ;; TODO: Add a test for this
-        (when (and (false? items) (not-empty instance))
-          {:error {:message "Items must be empty to satisfy a false schema"}})
+      (boolean? items)
+      ;; TODO: Add a test for this
+      (when (and (false? items) (not-empty instance))
+        {:error {:message "Items must be empty to satisfy a false schema"}})
 
-        (array? items)
-        (let [children
-              (for [[idx child-schema child-instance] (map vector (range) (concat items (repeat (get schema "additionalItems"))) instance)]
-                (assoc
-                 (validate* child-instance child-schema ctx)
-                 :index idx))]
-          (if (every? :valid? children)
-            {:items children}
-            {:error {:message "Not all items are valid"
-                     :bad-items (filter :errors children)}}))))))
+      (array? items)
+      (let [children
+            (for [[idx child-schema child-instance] (map vector (range) (concat items (repeat (get schema "additionalItems"))) instance)]
+              (assoc
+               (validate* child-instance child-schema ctx)
+               :index idx))]
+        (if (every? :valid? children)
+          {:items children}
+          {:error {:message "Not all items are valid"
+                   :bad-items (filter :errors children)}})))))
 
 (defmethod process-keyword "maxItems" [k max-items instance ctx]
   (when (array? instance)
@@ -708,7 +701,6 @@
                            (if k
                              (if-let [result (process-keyword
                                               kw v
-                                              #_instance ; original
                                               (some-some? :instance acc) ; curated
                                               (assoc ctx :acc acc))]
                                (conj acc (assoc result :keyword kw))
