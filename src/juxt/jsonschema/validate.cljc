@@ -43,14 +43,6 @@
   ;; return nil.
   nil)
 
-;; TODO: Actually we need to use find or contains, because we're also
-;; interested in nils
-(defn some-some?
-  "We need a version of some that treats false as a value"
-  [pred coll]
-    (when-let [s (seq coll)]
-      (if-some [i (pred (first s))] i (recur pred (next s)))))
-
 ;; We test against the instance first. We try to solve (via defaults)
 ;; and build up the instantiation, and possibly explain our actions
 ;; via the journal. If we can't solve, we throw errors. Errors are
@@ -116,6 +108,9 @@
     (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
       ;; TODO: Find out _which_ type it matches, and instantiate _that_
       {:error {:message (format "Value must be of type %s" (str/join " or " (pr-str type)))}})))
+
+;; TODO: Possibly replace :errors with :invalid? such that :invalid?
+;; is not a boolean but contains the errors.
 
 ;; TODO: Pass schema-path (and data-path) in a 'ctx' arg, not options
 ;; (keep 'options' constant). Demote 'doc' to 'ctx' entry, which
@@ -701,16 +696,19 @@
                            (if k
                              (if-let [result (process-keyword
                                               kw v
-                                              (some-some? :instance acc) ; curated
+                                              (:instance acc)
                                               (assoc ctx :acc acc))]
-                               (conj acc (assoc result :keyword kw))
+                               (cond-> acc
+                                 true (update :journal conj (assoc result :keyword kw))
+                                 (find result :instance) (assoc :instance (:instance result)))
                                acc)
                              acc)))
-                       (list {:instance instance :keyword :init})
+                       {:journal (list {:keyword :init})
+                        :instance instance}
                        (distinct (concat keywords (keys schema))))]
-          (let [errors (reverse (keep :error results))]
+          (let [errors (reverse (keep :error (:journal results)))]
             (merge
-             {:instance (some-some? :instance results)
+             {:instance (:instance results)
               :valid? (empty? errors)}
              (when (not-empty errors) {:errors (vec errors)})
              (when (:journal? options) {:journal (reverse results)}))))))))
