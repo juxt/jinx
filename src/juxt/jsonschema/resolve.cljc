@@ -10,7 +10,17 @@
   #?(:cljs (:import goog.Uri))
   #?(:cljs (:require-macros [juxt.jsonschema.resolve :refer [slurp-resource]])))
 
-;; Resolver framework
+(defmulti resolve-uri (fn [k uri] (cond (keyword? k) k (coll? k) (first k))))
+
+(defn read-json-string [json-str]
+  #?(:clj
+     (cheshire/parse-string json-str)
+     :cljs (js/JSON.parse json-str)))
+
+(defn read-json-stream [json-str]
+  #?(:clj
+     (cheshire/parse-stream (io/reader json-str))
+     :cljs (js/JSON.parse json-str)))
 
 #?(:clj (defmacro slurp-resource [resource]
           (clojure.core/slurp (str "resources/" resource))))
@@ -18,12 +28,11 @@
 ;; Built-in
 
 (def built-in-schemas
-  {"http://json-schema.org/draft-07/schema" "schemas/json-schema.org/draft-07/schema"})
+  {"http://json-schema.org/draft-07/schema" (slurp-resource "schemas/json-schema.org/draft-07/schema")})
 
 (defmethod resolve-uri ::built-in [_ uri]
   (when-let [res (built-in-schemas uri)]
-    (cheshire/parse-stream (io/reader (io/resource res)))))
-
+    (read-json-string res)))
 
 (defprotocol DefaultResolverDereferencer
   (deref-val [_ k] "Dereference"))
@@ -32,29 +41,28 @@
   #?(:clj java.net.URL :cljs goog.Uri) (deref-val [res k] (read-json-stream res))
 
   #?(:clj Boolean :cljs boolean) (deref-val [res k] res)
-  
+
   #?(:clj  clojure.lang.IPersistentMap :cljs cljs.core.ICollection)
-     (deref-val [res k] res)
-  
+  (deref-val [res k] res)
+
   #?(:clj clojure.lang.Fn :cljs function)
   (deref-val [f k] (deref-val (f k) k))
 
   #?(:clj java.io.File :cljs object)
-     (deref-val [file k] (read-json-stream file))
-  )
+  (deref-val [file k] (read-json-stream file)))
 (defmethod resolve-uri ::default-resolver [[_ m] ^String uri]
   (when-let
-      [[k val]
-       (or
+   [[k val]
+    (or
         ;; First strategy: lookup the url directly
-        (find m uri)
+     (find m uri)
 
         ;; Second, find a matching regex
-        (some (fn [[pattern v]]
-                 (when (instance? java.util.regex.Pattern pattern)
-                   (when-let [match (re-matches pattern uri)]
-                     [match v])))
-              m))]
+     (some (fn [[pattern v]]
+             (when (instance? java.util.regex.Pattern pattern)
+               (when-let [match (re-matches pattern uri)]
+                 [match v])))
+           m))]
 
     (deref-val val k)))
 
@@ -81,4 +89,4 @@
            doc
            docref]
 
-          (throw (ex-info (format "Failed to resolve uri: %s" docref) {:uri docref})))))))
+          (throw (ex-info (str "Failed to resolve uri: " docref) {:uri docref})))))))

@@ -1,21 +1,31 @@
 ;; Copyright © 2019, JUXT LTD.
 
 (ns juxt.jsonschema.validate
-  (:refer-clojure :exclude [number? integer?])
+  (:refer-clojure :exclude [number? integer? array? object?])
   (:require
-   [cheshire.core :as cheshire]
-   [clojure.set :as set]
-   [clojure.string :as str]
-   [clojure.java.io :as io] ;; TODO: Support cljs
-   [clojure.test :refer [deftest is are]]
-   [juxt.jsonschema.jsonpointer :as jsonpointer]
-   [juxt.jsonschema.core :refer [number? integer? array? object? schema?]]
-   [juxt.jsonschema.schema :as schema]
    [juxt.jsonschema.resolve :as resolv]
-   [juxt.jsonschema.regex :as regex]
-   [lambdaisland.uri :as uri]))
+   [clojure.string :as str]
+   [clojure.set :as set]
+   [lambdaisland.uri :as uri]
+   [cheshire.core :as cheshire]
+   [juxt.jsonschema.regex :as regex])
+  (:import
+       [java.time Duration ZoneId LocalTime LocalDate DayOfWeek Month ZoneOffset]
+       [java.time.format DateTimeFormatter]))
+
+(defn read-json-string [json-str]
+     (cheshire/parse-string json-str))
 
 (declare validate*)
+
+(defn array? [x]
+  (sequential? x))
+
+(defn object? [x]
+  (map? x))
+
+(defn schema? [x]
+  (or (object? x) (boolean? x)))
 
 ;; All references here relate to
 ;; draft-handrews-json-schema-validation-01.txt unless otherwise
@@ -48,8 +58,8 @@
 (defn some-some?
   "We need a version of some that treats false as a value"
   [pred coll]
-    (when-let [s (seq coll)]
-      (if-some [i (pred (first s))] i (recur pred (next s)))))
+  (when-let [s (seq coll)]
+    (if-some [i (pred (first s))] i (recur pred (next s)))))
 
 (defn peek-through [ctx kw]
   (some-some? kw (:acc ctx)))
@@ -73,8 +83,7 @@
      {:annotation {:default default}}
      (if-not (some? instance)
        {:instance default
-        :default-used? true
-        }))))
+        :default-used? true}))))
 
 (defmethod process-keyword "examples" [k examples instance ctx]
   (when (array? examples)
@@ -82,6 +91,15 @@
 
 ;; TODO: These must check against JavaScript primitive types,
 ;; not Clojure/Java ones
+
+(defn number? [x]
+  (clojure.core/number? x))
+
+(defn integer? [x]
+  (or
+   (clojure.core/integer? x)
+   (when (number? x)
+     (zero? (mod x 1)))))
 
 (def type-preds
   {"null" nil?
@@ -107,21 +125,19 @@
       (if-let [pred (get type-preds type)]
         (when-not (pred instance)
           ;; TODO: We have an error, but we should first try to coerce - e.g. string->number, number->string
-
+          
           {:error
-           {:message (format "Instance of %s is not of type %s"
-                             (pr-str instance)
-                             (pr-str type))
+           {:message (str "Instance of " (pr-str instance) " is not of type " (pr-str type))
             :instance instance
             :type type}})
 
         ;; Nil pred
-        (throw (IllegalStateException. "Invalid schema detected")))
+        (throw (ex-info "Invalid schema detected" {})))
 
-      (array? type)
-      (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
+        (array? type)
+        (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
         ;; TODO: Find out _which_ type it matches, and instantiate _that_
-        {:error {:message (format "Value must be of type %s" (str/join " or " (pr-str type)))}}))))
+          {:error {:message (str "Value must be of type " (str/join " or " (pr-str type)))}}))))
 
 ;; TODO: Pass schema-path (and data-path) in a 'ctx' arg, not options
 ;; (keep 'options' constant). Demote 'doc' to 'ctx' entry, which
@@ -129,17 +145,16 @@
 
 (defmethod process-keyword "enum" [k enum instance ctx]
   (when-not (contains? (set enum) instance)
-    {:error {:message (format "Value %s must be in enum %s" instance enum)}}))
+    {:error {:message (str "Value " instance" must be in enum " enum)}}))
 
 (defmethod process-keyword "const" [k const instance ctx]
   (when-not (= const instance)
-    {:error {:message (format "Value %s must be equal to const %s" instance const)}}))
+    {:error {:message (str "Value "instance" must be equal to const "  const)}}))
 
 (defmethod process-keyword "multipleOf" [k multiple-of instance ctx]
   (when (number? instance)
     (when-not
-        #?(:clj (= 0 (.compareTo (.remainder (bigdec instance) (bigdec multiple-of)) BigDecimal/ZERO))
-           :cljs [{:message "Not yet supported"}])
+      (= 0 (.compareTo (.remainder (bigdec instance) (bigdec multiple-of)) BigDecimal/ZERO))
       {:error {:message "Failed multipleOf check"}})))
 
 (defmethod process-keyword "maximum" [k maximum instance ctx]
@@ -171,15 +186,14 @@
 (defmethod process-keyword "minLength" [k min-length instance ctx]
   (when (string? instance)
     (when (<
-           #?(:clj (.codePointCount instance 0 (.length instance))
-              :cljs (count instance))
+           (.codePointCount instance 0 (.length instance))
            min-length)
       {:error {:message "String is too short"}})))
 
 (defmethod process-keyword "pattern" [_ pattern instance ctx]
   (when (string? instance)
     (when-not (re-seq (re-pattern pattern) instance)
-      {:error {:message (format "String does not match pattern %s" pattern)}})))
+      {:error {:message (str "String does not match pattern " pattern)}})))
 
 ;; TODO: Show paths in error messages
 ;; TODO: Improve error messages, possibly copying Ajv or org.everit json-schema
@@ -434,8 +448,7 @@
                    :causes (:errors result)}})))))
 
 ;; TODO: Rather than get, use a macro to retrieve either strings and
-;; keywords, supporting both. But BE CAREFUL with :default as we'll
-;; need to repoint the defmulti's :default in that case.
+;; keywords, supporting both
 
 (defmulti check-format (fn [fmt instance ctx] fmt))
 
@@ -445,31 +458,31 @@
 
 (defmethod check-format "date-time" [fmt instance ctx]
   (when (string? instance)
-    (try
-      (.parse java.time.format.DateTimeFormatter/ISO_DATE_TIME instance)
-      nil
-      (catch Exception e
-        {:format fmt
-         :error {:message "Doesn't match date-time format"}}))))
+       (try
+         (.parse java.time.format.DateTimeFormatter/ISO_DATE_TIME instance)
+         nil
+         (catch Exception e
+           {:format fmt
+            :error {:message "Doesn't match date-time format"}}))))
 
 (defmethod check-format "date" [fmt instance ctx]
   (when (string? instance)
-    (try
-      (.parse java.time.format.DateTimeFormatter/ISO_LOCAL_DATE instance)
-      nil
-      (catch Exception e
-        {:format fmt
-         :error {:message "Doesn't match date format"}}
-        ))))
+       (try
+         (.parse java.time.format.DateTimeFormatter/ISO_LOCAL_DATE instance)
+         nil
+         (catch Exception e
+           {:format fmt
+            :error {:message "Doesn't match date format"}}))))
+       
 
 (defmethod check-format "time" [fmt instance ctx]
   (when (string? instance)
-    (try
-      (.parse java.time.format.DateTimeFormatter/ISO_TIME instance)
-      nil
-      (catch Exception e
-        {:format fmt
-         :error {:message "Doesn't match time format"}}))))
+       (try
+         (.parse java.time.format.DateTimeFormatter/ISO_TIME instance)
+         nil
+         (catch Exception e
+           {:format fmt
+            :error {:message "Doesn't match time format"}}))))
 
 (defmethod check-format "email" [fmt instance ctx]
   (when (string? instance)
@@ -568,14 +581,14 @@
       (.contains instance "\\Z")
       {:format fmt
        :error {:message "Must not contain \\Z anchor from .NET"}}
-
       :else
       (try
         (re-pattern instance)
         nil
         (catch Exception e
-          {:format fmt
+          {:format fmt   
            :error {:message "Illegal regex"}})))))
+
 
 (defmethod process-keyword "format" [_ format instance ctx]
   ;; TODO: This is optional, so should be possible to disable via
@@ -600,8 +613,9 @@
   (when (string? instance)
     (try
       {:instant (decode-content content-encoding instance)}
-      (catch Exception e
-        {:error {:message "Not base64"}}))))
+      nil
+        (catch Exception e
+          {:error {:message "Not base64"}}))))
 
 (defmethod process-keyword "contentMediaType" [k content-media-type instance {:keys [schema] :as ctx}]
   ;; TODO: This is optional, so should be possible to disable via
@@ -611,22 +625,22 @@
   ;; choose to do so, they SHOULD offer an option to disable
   ;; validation for these keywords."
   (when (string? instance)
-    (if-let [content (try
-                       (decode-content (get schema "contentEncoding") instance)
-                       (catch Exception e nil))]
-      ;; TODO: Open for extension with a multimethod
-      (case content-media-type
-        "application/json"
-        (try
-          {:instant (cheshire/parse-string content)}
-          (catch Exception e
-            {:error {:message "Instance is not application/json"}})))
-      {:error {:message "Unable to decode content"}})))
+       (if-let [content (try
+                          (decode-content (get schema "contentEncoding") instance)
+                          (catch Exception e nil))]
+        ;; TODO: Open for extension with a multimethod
+         (case content-media-type
+           "application/json"
+           (try
+             {:instant (read-json-string content)}
+             (catch Exception e
+               {:error {:message "Instance is not application/json"}})))
+         {:error {:message "Unable to decode content"}})))
 
 (defn resolve-ref [ref-object doc ctx]
   (assert ref-object)
 
-  (let [ ;; "The value of the "$ref" property MUST be a URI Reference."
+  (let [;; "The value of the "$ref" property MUST be a URI Reference."
         ;; -- [CORE Section 8.3]
         base-uri (get (meta ref-object) :base-uri)
         ref (some-> (get ref-object "$ref") java.net.URLDecoder/decode)
