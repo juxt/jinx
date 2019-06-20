@@ -49,23 +49,26 @@
 ;; fatal.
 
 (defmethod process-keyword "title" [k title instance ctx]
-  (when (string? title)
-    {:annotation {:title title}}))
+  {:annotations {"title" title}})
 
 (defmethod process-keyword "description" [k description instance ctx]
-  (when (string? description)
-    {:annotation {:description description}}))
+  {:annotations {"description" description}})
 
 (defmethod process-keyword "default" [k default instance ctx]
   (merge
-   {:annotation {:default default}}
+   {:annotations {:default default}}
    (if-not (some? instance)
      {:instance default
       :default-used? true})))
 
+(defmethod process-keyword "readOnly" [k read-only instance ctx]
+  {:annotations {"readOnly" read-only}})
+
+(defmethod process-keyword "writeOnly" [k write-only instance ctx]
+  {:annotations {"writeOnly" write-only}})
+
 (defmethod process-keyword "examples" [k examples instance ctx]
-  (when (array? examples)
-    {:annotation {:examples examples}}))
+  {:annotations {"examples" examples}})
 
 ;; TODO: These must check against JavaScript primitive types,
 ;; not Clojure/Java ones
@@ -587,7 +590,7 @@
   ;; validation for these keywords."
   (when (string? instance)
     (try
-      {:instant (decode-content content-encoding instance)}
+      {:content (decode-content content-encoding instance)}
       (catch Exception e
         {:error {:message "Not base64"}}))))
 
@@ -600,13 +603,16 @@
   ;; validation for these keywords."
   (when (string? instance)
     (if-let [content (try
+                       ;; TODO: Why do this twice?
+                       ;; We should be able to access this content
                        (decode-content (get schema "contentEncoding") instance)
                        (catch Exception e nil))]
       ;; TODO: Open for extension with a multimethod
       (case content-media-type
         "application/json"
         (try
-          {:instant (cheshire/parse-string content)}
+          (cheshire/parse-string content)
+          nil
           (catch Exception e
             {:error {:message "Instance is not application/json"}})))
       {:error {:message "Unable to decode content"}})))
@@ -694,10 +700,7 @@
                        (fn [acc kw]
                          (let [[k v] (find schema kw)]
                            (if k
-                             (if-let [result (process-keyword
-                                              kw v
-                                              (:instance acc)
-                                              (assoc ctx :acc acc))]
+                             (if-let [result (process-keyword kw v (:instance acc) ctx)]
                                (cond-> acc
                                  true (update :journal conj (assoc result :keyword kw))
                                  (find result :instance) (assoc :instance (:instance result)))
@@ -711,7 +714,7 @@
              {:instance (:instance results)
               :valid? (empty? errors)}
              (when (not-empty errors) {:errors (vec errors)})
-             (when (:journal? options) {:journal (reverse results)}))))))))
+             (when (:journal? options) {:journal results}))))))))
 
 (defn validate
   "Instance should come first do support the Clojure thread-first
