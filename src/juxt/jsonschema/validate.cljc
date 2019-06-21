@@ -711,16 +711,16 @@
                                  (find result :instance) (assoc :instance (:instance result)))
                                acc)
                              acc)))
-                       {:journal (list)
+                       {:journal []
                         :instance instance}
                        (distinct (concat keywords (keys schema))))]
-          (let [errors (reverse (keep :error (:journal results)))]
+          (let [errors (keep :error (:journal results))]
             (merge
              {:instance (:instance results)
               :valid? (empty? errors)}
              (when (not-empty errors) {:errors (vec errors)})
              {:annotations (group-by first (mapcat :annotations (:journal results)))}
-             (when (:journal? options) {:journal (vec (reverse (:journal results)))}))))))))
+             (when (:journal? options) {:journal (vec (:journal results))}))))))))
 
 (defn validate
   "Instance should come first do support the Clojure thread-first
