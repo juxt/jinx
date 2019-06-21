@@ -639,6 +639,22 @@
                       base-uri (assoc :base-uri base-uri)
                       doc (assoc :doc doc))]))))
 
+;; "Since many subschemas can be applicable to any single location,
+;; annotation keywords need to specify any unusual handling of
+;; multiple applicable occurrences of the keyword with different
+;; values."
+(defmulti handle-multiple-annotations (fn [kw annotations] kw))
+
+;; "The default behavior is simply to collect all values."
+(defmethod handle-multiple-annotations :default [kw annotations]
+  annotations)
+
+(defmethod handle-multiple-annotations "title" [kw annotations]
+  (first annotations))
+
+(defmethod handle-multiple-annotations "description" [kw annotations]
+  (first annotations))
+
 (defn- validate*
   [instance schema {:keys [options] :as ctx}]
 
@@ -719,7 +735,12 @@
              {:instance (:instance results)
               :valid? (empty? errors)}
              (when (not-empty errors) {:errors (vec errors)})
-             {:annotations (group-by first (mapcat :annotations (:journal results)))}
+             {:annotations
+              (into
+               {}
+               (for [[kw annotations]
+                     (group-by first (mapcat :annotations (:journal results)))]
+                 [kw (handle-multiple-annotations kw (mapv second annotations))]))}
              (when (:journal? options) {:journal (vec (:journal results))}))))))))
 
 (defn validate
