@@ -279,7 +279,7 @@
                             :let [subschema (get properties kw)]
                             :when (some? subschema)
                             :let [validation (validate* child subschema ctx)]]
-                        (assoc validation :keyword kw))
+                        (merge {:keyword kw} validation))
 
           result (reduce
                   (fn [acc result]
