@@ -6,6 +6,7 @@
   (:import
    (clojure.lang ExceptionInfo)))
 
+
 (deftest type-test
   (testing "bad type"
     (is
@@ -380,7 +381,7 @@
 
   (is (thrown-with-msg?
        ExceptionInfo
-       #"Dependency values MUST be an array or a valid JSON Schema"
+       #"Dependency values MUST be an array or a JSON Schema"
        (schema {"dependencies" {"a" nil}}))))
 
 (deftest property-names-test
@@ -388,9 +389,27 @@
   (is (schema {"propertyNames" true}))
   (is (thrown-with-msg?
        ExceptionInfo
-       #"The value of 'propertyNames' MUST be a valid JSON Schema"
+       #"The value of 'propertyNames' MUST be a JSON Schema"
        (schema {"propertyNames" nil})))
   (is (thrown-with-msg?
        ExceptionInfo
        #"The value of 'propertyNames' MUST be a valid JSON Schema"
        (schema {"propertyNames" {"type" "foo"}}))))
+
+(deftest if-test
+  (is (thrown-with-msg?
+       ExceptionInfo
+       #"The value of 'if' MUST be a valid JSON Schema"
+       (schema {"if" {"type" "foo"}}))))
+
+(deftest then-test
+  (is (thrown-with-msg?
+       ExceptionInfo
+       #"The value of 'then' MUST be a valid JSON Schema"
+       (schema {"then" {"type" "foo"}}))))
+
+(deftest else-test
+  (is (thrown-with-msg?
+       ExceptionInfo
+       #"The value of 'else' MUST be a valid JSON Schema"
+       (schema {"else" {"type" "foo"}}))))

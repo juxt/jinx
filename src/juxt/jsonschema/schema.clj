@@ -207,7 +207,7 @@
     )
   (doseq [v (vals v)]
     (when-not (or (array? v) (schema? v))
-      (throw (ex-info "Dependency values MUST be an array or a valid JSON Schema" {:value v})))
+      (throw (ex-info "Dependency values MUST be an array or a JSON Schema" {:value v})))
     (when (and (array? v) (not-empty v))
       (when-not (every? string? v)
         (throw (ex-info "Each element in a dependencies array MUST be a string" {})))
@@ -221,11 +221,35 @@
 
 (defmethod validate-keyword "propertyNames" [kw v options]
   (when-not (schema? v)
-    (throw (ex-info "The value of 'propertyNames' MUST be a valid JSON Schema" {:value v})))
+    (throw (ex-info "The value of 'propertyNames' MUST be a JSON Schema" {:value v})))
   (try
     (validate v options)
     (catch ExceptionInfo cause
       (throw (ex-info "The value of 'propertyNames' MUST be a valid JSON Schema" {:value v} cause)))))
+
+(defmethod validate-keyword "if" [kw v options]
+  (when-not (schema? v)
+    (throw (ex-info "The value of 'if' MUST be a JSON Schema" {:value v})))
+  (try
+    (validate v options)
+    (catch ExceptionInfo cause
+      (throw (ex-info "The value of 'if' MUST be a valid JSON Schema" {:value v} cause)))))
+
+(defmethod validate-keyword "then" [kw v options]
+  (when-not (schema? v)
+    (throw (ex-info "The value of 'then' MUST be a JSON Schema" {:value v})))
+  (try
+    (validate v options)
+    (catch ExceptionInfo cause
+      (throw (ex-info "The value of 'then' MUST be a valid JSON Schema" {:value v} cause)))))
+
+(defmethod validate-keyword "else" [kw v options]
+  (when-not (schema? v)
+    (throw (ex-info "The value of 'else' MUST be a JSON Schema" {:value v})))
+  (try
+    (validate v options)
+    (catch ExceptionInfo cause
+      (throw (ex-info "The value of 'else' MUST be a valid JSON Schema" {:value v} cause)))))
 
 ;; TODO: propertyNames
 
