@@ -427,3 +427,40 @@
        #"Each item of an 'allOf' array MUST be a valid schema"
        (schema/validate {"allOf" [{"type" "foo"}]})))
   (is (schema/validate {"allOf" [{"type" "string"}]})))
+
+(deftest any-of-test
+  (is (thrown-with-msg?
+       ExceptionInfo
+       #"The value of 'anyOf' MUST be a non-empty array"
+       (schema/validate {"anyOf" {"type" "string"}})))
+  (is (thrown-with-msg?
+       ExceptionInfo
+       #"The value of 'anyOf' MUST be a non-empty array"
+       (schema/validate {"anyOf" []})))
+  (is (thrown-with-msg?
+       ExceptionInfo
+       #"Each item of an 'anyOf' array MUST be a valid schema"
+       (schema/validate {"anyOf" [{"type" "foo"}]})))
+  (is (schema/validate {"anyOf" [{"type" "string"}]})))
+
+(deftest one-of-test
+  (is (thrown-with-msg?
+       ExceptionInfo
+       #"The value of 'oneOf' MUST be a non-empty array"
+       (schema/validate {"oneOf" {"type" "string"}})))
+  (is (thrown-with-msg?
+       ExceptionInfo
+       #"The value of 'oneOf' MUST be a non-empty array"
+       (schema/validate {"oneOf" []})))
+  (is (thrown-with-msg?
+       ExceptionInfo
+       #"Each item of an 'oneOf' array MUST be a valid schema"
+       (schema/validate {"oneOf" [{"type" "foo"}]})))
+  (is (schema/validate {"oneOf" [{"type" "string"}]})))
+
+(deftest not-test
+  (is (thrown-with-msg?
+       ExceptionInfo
+       #"The value of 'not' MUST be a valid JSON Schema"
+       (schema/validate {"not" {"type" "foo"}})))
+  (is (schema/validate {"not" {"type" "string"}})))

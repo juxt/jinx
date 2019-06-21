@@ -59,7 +59,7 @@ file:/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/
 * DONE [#B] 7. Semantic Validation With "format"
 * TODO Fix remaining format tests (uri-template and idn-email), currently ignored
 * DONE Finish schema validation (if, then, else)
-* TODO Finish schema validation (allOf, anyOf, oneOf, not)
+* DONE Finish schema validation (allOf, anyOf, oneOf, not)
 * TODO Finish schema validation (format)
 * TODO Recursion protection (use schema-path visited hash-set)
 * TODO [#C] 8. String-Encoding Non-JSON Data
