@@ -95,8 +95,8 @@
     (string? type)
     (if-let [pred (get type-preds type)]
       (when-not (pred instance)
-        ;; TODO: We have an error, but we should first try to coerce - e.g. string->number, number->string
-
+        ;; TODO: We have an error, but we should first try to coerce -
+        ;; e.g. string->number, number->string
         {:error
          {:message (format "Instance of %s is not of type %s"
                            (pr-str instance)
