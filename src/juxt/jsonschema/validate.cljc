@@ -702,7 +702,7 @@
                            (if k
                              (if-let [result (process-keyword kw v (:instance acc) ctx)]
                                (cond-> acc
-                                 true (update :journal conj (assoc result :keyword kw))
+                                 true (update :journal conj (merge {:keyword kw} result))
                                  (find result :instance) (assoc :instance (:instance result)))
                                acc)
                              acc)))
