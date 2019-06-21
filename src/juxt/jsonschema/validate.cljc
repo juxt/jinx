@@ -706,7 +706,7 @@
                                  (find result :instance) (assoc :instance (:instance result)))
                                acc)
                              acc)))
-                       {:journal (list {:keyword :init})
+                       {:journal (list)
                         :instance instance}
                        (distinct (concat keywords (keys schema))))]
           (let [errors (reverse (keep :error (:journal results)))]
