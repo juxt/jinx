@@ -275,20 +275,22 @@
 
 (defmethod process-keyword "properties" [_ properties instance {:keys [state schema state options] :as ctx}]
   (when (object? instance)
-    (let [validations (for [[kw child] instance
-                            :let [subschema (get properties kw)]
-                            :when (some? subschema)
-                            :let [validation (validate* child subschema ctx)]]
-                        (merge {:keyword kw} validation))
+    (let [validations
+          (for [[kw child] instance
+                :let [subschema (get properties kw)]
+                :when (some? subschema)
+                :let [validation (validate* child subschema ctx)]]
+            (merge {:keyword kw} validation))
 
-          result (reduce
-                  (fn [acc result]
-                    (cond-> acc
-                      (not (:valid? result))
-                      (assoc-in [:causes (:keyword result)] (:errors result))))
+          result
+          (reduce
+           (fn [acc result]
+             (cond-> acc
+               (not (:valid? result))
+               (assoc-in [:causes (:keyword result)] (:errors result))))
 
-                  {:instance instance}
-                  validations)]
+           {:instance instance}
+           validations)]
 
       (when-let [causes (:causes result)]
         {:error {:message "Some properties failed to validate against their schemas"
@@ -602,11 +604,12 @@
   ;; choose to do so, they SHOULD offer an option to disable
   ;; validation for these keywords."
   (when (string? instance)
-    (if-let [content (try
-                       ;; TODO: Why do this twice?
-                       ;; We should be able to access this content
-                       (decode-content (get schema "contentEncoding") instance)
-                       (catch Exception e nil))]
+    (if-let [content
+             (try
+               ;; TODO: Why do this twice?
+               ;; We should be able to access this content
+               (decode-content (get schema "contentEncoding") instance)
+               (catch Exception e nil))]
       ;; TODO: Open for extension with a multimethod
       (case content-media-type
         "application/json"
@@ -667,7 +670,9 @@
              ["$schema"
               "definitions"
 
-              ;; Process annotations first as these can affect the instance
+              ;; Process annotations first. The "default" annotation
+              ;; can affect the instance which may impact the
+              ;; validation of subsequent keywords.
               "title"
               "description"
               "default"
