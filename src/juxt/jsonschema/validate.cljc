@@ -714,7 +714,7 @@
              {:instance (:instance results)
               :valid? (empty? errors)}
              (when (not-empty errors) {:errors (vec errors)})
-             (when (:journal? options) {:journal results}))))))))
+             (when (:journal? options) {:journal (vec (reverse (:journal results)))}))))))))
 
 (defn validate
   "Instance should come first do support the Clojure thread-first
