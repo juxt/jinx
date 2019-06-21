@@ -292,6 +292,10 @@
     (catch ExceptionInfo cause
       (throw (ex-info "The value of 'not' MUST be a valid JSON Schema" {:value v} cause)))))
 
+(defmethod validate-keyword "format" [kw v options]
+  (when-not (string? v)
+    (throw (ex-info "The value of a 'format' attribute MUST be a string" {:value v}))))
+
 (defn validate
   "Validate a schema, checking it obeys conformance rules. When
   the :strict? option is truthy, rules that contain SHOULD are

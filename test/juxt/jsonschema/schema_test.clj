@@ -464,3 +464,14 @@
        #"The value of 'not' MUST be a valid JSON Schema"
        (schema/validate {"not" {"type" "foo"}})))
   (is (schema/validate {"not" {"type" "string"}})))
+
+(deftest format-test
+  (is (thrown-with-msg?
+       ExceptionInfo
+       #"The value of a 'format' attribute MUST be a string"
+       (schema/validate {"format" nil})))
+  (is (thrown-with-msg?
+       ExceptionInfo
+       #"The value of a 'format' attribute MUST be a string"
+       (schema/validate {"format" []})))
+  (is (schema/validate {"format" "regex"})))
