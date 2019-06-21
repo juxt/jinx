@@ -714,6 +714,7 @@
              {:instance (:instance results)
               :valid? (empty? errors)}
              (when (not-empty errors) {:errors (vec errors)})
+             {:annotations (group-by first (mapcat :annotations (:journal results)))}
              (when (:journal? options) {:journal (vec (reverse (:journal results)))}))))))))
 
 (defn validate
