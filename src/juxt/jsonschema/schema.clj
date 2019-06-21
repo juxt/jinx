@@ -251,18 +251,32 @@
     (catch ExceptionInfo cause
       (throw (ex-info "The value of 'else' MUST be a valid JSON Schema" {:value v} cause)))))
 
+(defmethod validate-keyword "allOf" [kw v options]
+  (when-not (array? v)
+    (throw (ex-info "The value of 'allOf' MUST be a non-empty array" {:value v})))
+  (when (empty? v)
+    (throw (ex-info "The value of 'allOf' MUST be a non-empty array" {:value v})))
+  (doseq [subschema v]
+    (try
+      (validate subschema options)
+      (catch ExceptionInfo cause
+        (throw (ex-info "Each item of an 'allOf' array MUST be a valid schema" {:value v} cause))))))
+
 ;; TODO: propertyNames
 
-(defn- validate
+(defn validate
   "Validate a schema, checking it obeys conformance rules. When
   the :strict? option is truthy, rules that contain SHOULD are
   considered errors."
-  [schema options]
-  (or
-   (boolean? schema)
-   (nil? schema)
-   (doseq [[k v] (seq schema)]
-     (validate-keyword k v options))))
+  ([schema]
+   (validate schema {:strict? true}))
+  ([schema options]
+   (or
+    (boolean? schema)
+    (nil? schema)
+    (doseq [[k v] (seq schema)]
+      (validate-keyword k v options))
+    schema)))
 
 (defn schema
   ([s]

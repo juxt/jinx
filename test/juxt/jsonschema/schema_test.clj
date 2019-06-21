@@ -1,6 +1,5 @@
 (ns juxt.jsonschema.schema-test
   (:require
-   [juxt.jsonschema.schema :refer [schema]]
    [clojure.test :refer [deftest is are testing]]
    [juxt.jsonschema.schema :as schema])
   (:import
@@ -13,164 +12,164 @@
      (thrown-with-msg?
       ExceptionInfo
       #"The value of 'type' MUST be either a string or an array"
-      (schema {"type" 10}))))
+      (schema/validate {"type" 10}))))
 
   (testing "bad string type"
     (is
      (thrown-with-msg?
       ExceptionInfo
       #"String values of 'type' MUST be one of the six primitive types or 'integer'"
-      (schema {"type" "float"}))))
+      (schema/validate {"type" "float"}))))
 
   (testing "array elements must be strings"
     (is
      (thrown-with-msg?
       ExceptionInfo
       #"The value of 'type', if it is an array, elements of the array MUST be strings"
-      (schema {"type" ["string" 10]}))))
+      (schema/validate {"type" ["string" 10]}))))
 
   (testing "array elements must be strings"
     (is
      (thrown-with-msg?
       ExceptionInfo
       #"The value of 'type', if it is an array, elements of the array MUST be strings"
-      (schema {"type" [nil]}))))
+      (schema/validate {"type" [nil]}))))
 
   (testing "unique elements"
     (is
      (thrown-with-msg?
       ExceptionInfo
       #"The value of 'type', if it is an array, elements of the array MUST be unique"
-      (schema {"type" ["string" "string"]}))))
+      (schema/validate {"type" ["string" "string"]}))))
 
   (testing "integer"
     (is
-     (schema {"type" ["integer"]})))
+     (schema/validate {"type" ["integer"]})))
 
   (testing "illegal"
     (is
      (thrown-with-msg?
       ExceptionInfo
       #"String values of 'type' MUST be one of the six primitive types or 'integer'"
-      (schema {"type" ["float" "number"]})))))
+      (schema/validate {"type" ["float" "number"]})))))
 
 (deftest enum-test
   (testing "must be an array"
     (is
-     (schema {"enum" ["foo" "bar"]}))
+     (schema/validate {"enum" ["foo" "bar"]}))
     (is
      (thrown-with-msg?
       ExceptionInfo
       #"The value of an enum MUST be an array"
-      (schema {"enum" "foo"})))
+      (schema/validate {"enum" "foo"})))
     (is
      (thrown-with-msg?
       ExceptionInfo
       #"The value of an enum SHOULD have at least one element"
-      (schema {"enum" []})))
+      (schema/validate {"enum" []})))
     (is
      (thrown-with-msg?
       ExceptionInfo
       #"Elements in the enum value array SHOULD be unique"
-      (schema {"enum" ["foo" "foo"]})))))
+      (schema/validate {"enum" ["foo" "foo"]})))))
 
 (deftest const-test
   (testing "may be any type"
     (is
-     (schema {"const" "foo"}))
+     (schema/validate {"const" "foo"}))
     (is
-     (schema {"const" []}))
+     (schema/validate {"const" []}))
     (is
-     (schema {"const" ["foo"]}))
+     (schema/validate {"const" ["foo"]}))
     (is
-     (schema {"const" nil}))))
+     (schema/validate {"const" nil}))))
 
 (deftest multiple-of-test
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of multipleOf MUST be a number, strictly greater than 0"
-    (schema {"multipleOf" "foo"})))
+    (schema/validate {"multipleOf" "foo"})))
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of multipleOf MUST be a number, strictly greater than 0"
-    (schema {"multipleOf" 0})))
+    (schema/validate {"multipleOf" 0})))
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of multipleOf MUST be a number, strictly greater than 0"
-    (schema {"multipleOf" -1})))
+    (schema/validate {"multipleOf" -1})))
   (is
-   (schema {"multipleOf" 0.1})))
+   (schema/validate {"multipleOf" 0.1})))
 
 (deftest maximum-test
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of maximum MUST be a number"
-    (schema {"maximum" "foo"})))
+    (schema/validate {"maximum" "foo"})))
   (is
-   (schema {"maximum" 10}))
+   (schema/validate {"maximum" 10}))
   (is
-   (schema {"maximum" 10.5})))
+   (schema/validate {"maximum" 10.5})))
 
 (deftest exclustive-maximum-test
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of exclusiveMaximum MUST be a number"
-    (schema {"exclusiveMaximum" "foo"}))))
+    (schema/validate {"exclusiveMaximum" "foo"}))))
 
 (deftest minimum-test
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of minimum MUST be a number"
-    (schema {"minimum" "foo"}))))
+    (schema/validate {"minimum" "foo"}))))
 
 (deftest exclusive-minimum-test
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of exclusiveMinimum MUST be a number"
-    (schema {"exclusiveMinimum" "foo"}))))
+    (schema/validate {"exclusiveMinimum" "foo"}))))
 
 (deftest max-length-test
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of maxLength MUST be a non-negative integer"
-    (schema {"maxLength" "foo"})))
+    (schema/validate {"maxLength" "foo"})))
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of maxLength MUST be a non-negative integer"
-    (schema {"maxLength" -1})))
-  (is (schema {"maxLength" 0}))
-  (is (schema {"maxLength" 5})))
+    (schema/validate {"maxLength" -1})))
+  (is (schema/validate {"maxLength" 0}))
+  (is (schema/validate {"maxLength" 5})))
 
 (deftest min-length-test
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of minLength MUST be a non-negative integer"
-    (schema {"minLength" "foo"})))
+    (schema/validate {"minLength" "foo"})))
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of minLength MUST be a non-negative integer"
-    (schema {"minLength" -1})))
-  (is (schema {"minLength" 0}))
-  (is (schema {"minLength" 5})))
+    (schema/validate {"minLength" -1})))
+  (is (schema/validate {"minLength" 0}))
+  (is (schema/validate {"minLength" 5})))
 
 (deftest pattern-test
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of pattern MUST be a string"
-    (schema {"pattern" 10})))
-  (is (schema {"pattern" "foobar.?"})))
+    (schema/validate {"pattern" 10})))
+  (is (schema/validate {"pattern" "foobar.?"})))
 
 (deftest items-test
   (testing "Nil value"
@@ -178,238 +177,253 @@
      (thrown-with-msg?
       ExceptionInfo
       #"The value of 'items' MUST be either a valid JSON Schema or an array of valid JSON Schemas"
-      (schema {"items" nil}))))
+      (schema/validate {"items" nil}))))
 
   (testing "Bad subschema"
     (is
      (thrown-with-msg?
       ExceptionInfo
       #"The value of 'items' MUST be a valid JSON Schema"
-      (schema {"items" {"type" "foo"}}))))
+      (schema/validate {"items" {"type" "foo"}}))))
 
   (testing "Bad subschemas"
     (is
      (thrown-with-msg?
       ExceptionInfo
       #"The value of 'items' MUST be an array of valid JSON Schemas, but at least one element isn't valid"
-      (schema {"items" [{"type" "string"}
+      (schema/validate {"items" [{"type" "string"}
                         {"type" "number"}
                         {"type" "float"}]})))))
 
 (deftest additional-items-test
-  (is (schema {"additionalItems" false}))
-  (is (schema {"additionalItems" true}))
+  (is (schema/validate {"additionalItems" false}))
+  (is (schema/validate {"additionalItems" true}))
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of 'additionalItems' MUST be a valid JSON Schema"
-    (schema {"additionalItems" nil})))
+    (schema/validate {"additionalItems" nil})))
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of 'additionalItems' MUST be a valid JSON Schema"
-    (schema {"additionalItems" {"type" "foo"}}))))
+    (schema/validate {"additionalItems" {"type" "foo"}}))))
 
 (deftest max-items-test
-  (is (schema {"maxItems" 10}))
-  (is (schema {"maxItems" 0}))
+  (is (schema/validate {"maxItems" 10}))
+  (is (schema/validate {"maxItems" 0}))
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of 'maxItems' MUST be a non-negative integer"
-    (schema {"maxItems" -1})))
+    (schema/validate {"maxItems" -1})))
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of 'maxItems' MUST be a non-negative integer"
-    (schema {"maxItems" 0.5}))))
+    (schema/validate {"maxItems" 0.5}))))
 
 (deftest min-items-test
-  (is (schema {"minItems" 10}))
-  (is (schema {"minItems" 0}))
+  (is (schema/validate {"minItems" 10}))
+  (is (schema/validate {"minItems" 0}))
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of 'minItems' MUST be a non-negative integer"
-    (schema {"minItems" -1})))
+    (schema/validate {"minItems" -1})))
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of 'minItems' MUST be a non-negative integer"
-    (schema {"minItems" 0.5}))))
+    (schema/validate {"minItems" 0.5}))))
 
 (deftest unique-items-test
-  (is (schema {"uniqueItems" true}))
-  (is (schema {"uniqueItems" false}))
+  (is (schema/validate {"uniqueItems" true}))
+  (is (schema/validate {"uniqueItems" false}))
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of 'uniqueItems' MUST be a boolean"
-    (schema {"uniqueItems" 1}))))
+    (schema/validate {"uniqueItems" 1}))))
 
 (deftest contains-test
-  (is (schema {"contains" true}))
-  (is (schema {"contains" false}))
-  (is (schema {"contains" {"type" "string"}}))
+  (is (schema/validate {"contains" true}))
+  (is (schema/validate {"contains" false}))
+  (is (schema/validate {"contains" {"type" "string"}}))
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of 'contains' MUST be a valid JSON Schema"
-    (schema {"contains" {"type" "foo"}}))))
+    (schema/validate {"contains" {"type" "foo"}}))))
 
 (deftest max-properties-test
-  (is (schema {"maxProperties" 10}))
-  (is (schema {"maxProperties" 0}))
+  (is (schema/validate {"maxProperties" 10}))
+  (is (schema/validate {"maxProperties" 0}))
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of 'maxProperties' MUST be a non-negative integer"
-    (schema {"maxProperties" -1})))
+    (schema/validate {"maxProperties" -1})))
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of 'maxProperties' MUST be a non-negative integer"
-    (schema {"maxProperties" 0.5}))))
+    (schema/validate {"maxProperties" 0.5}))))
 
 (deftest min-properties-test
-  (is (schema {"minProperties" 10}))
-  (is (schema {"minProperties" 0}))
+  (is (schema/validate {"minProperties" 10}))
+  (is (schema/validate {"minProperties" 0}))
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of 'minProperties' MUST be a non-negative integer"
-    (schema {"minProperties" -1})))
+    (schema/validate {"minProperties" -1})))
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of 'minProperties' MUST be a non-negative integer"
-    (schema {"minProperties" 0.5}))))
+    (schema/validate {"minProperties" 0.5}))))
 
 (deftest required-test
-  (is (schema {"required" []}))
-  (is (schema {"required" ["foo" "bar"]}))
+  (is (schema/validate {"required" []}))
+  (is (schema/validate {"required" ["foo" "bar"]}))
 
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of 'required' MUST be an array"
-    (schema {"required" "foo"})))
+    (schema/validate {"required" "foo"})))
 
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of 'required' MUST be an array. Elements of this array, if any, MUST be strings"
-    (schema {"required" ["foo" 0]})))
+    (schema/validate {"required" ["foo" 0]})))
 
   (is
    (thrown-with-msg?
     ExceptionInfo
     #"The value of 'required' MUST be an array. Elements of this array, if any, MUST be unique"
-    (schema {"required" ["foo" "foo"]}))))
+    (schema/validate {"required" ["foo" "foo"]}))))
 
 
 (deftest properties-test
   (testing "empty object"
-    (is (schema {"properties" {}})))
+    (is (schema/validate {"properties" {}})))
 
   (testing "Bad object"
     (is
      (thrown-with-msg?
       ExceptionInfo
       #"The value of 'properties' MUST be an object"
-      (schema {"properties" 10}))))
+      (schema/validate {"properties" 10}))))
 
   (testing "Bad subschema"
     (is
      (thrown-with-msg?
       ExceptionInfo
       #"Each value of 'properties' MUST be a valid JSON Schema"
-      (schema {"properties" {"foo" {"type" "bar"}}})))))
+      (schema/validate {"properties" {"foo" {"type" "bar"}}})))))
 
 (deftest pattern-properties-test
   (testing "empty object"
-    (is (schema {"patternProperties" {}})))
+    (is (schema/validate {"patternProperties" {}})))
 
   (testing "Bad object"
     (is
      (thrown-with-msg?
       ExceptionInfo
       #"The value of 'patternProperties' MUST be an object"
-      (schema {"patternProperties" 10}))))
+      (schema/validate {"patternProperties" 10}))))
 
   (testing "Bad subschema"
     (is
      (thrown-with-msg?
       ExceptionInfo
       #"Each value of a 'patternProperties' object MUST be a valid JSON Schema"
-      (schema {"patternProperties" {"foo" {"type" "bar"}}})))))
+      (schema/validate {"patternProperties" {"foo" {"type" "bar"}}})))))
 
 (deftest additional-properties-test
-  (is (schema {"additionalProperties" false}))
-  (is (schema {"additionalProperties" true}))
+  (is (schema/validate {"additionalProperties" false}))
+  (is (schema/validate {"additionalProperties" true}))
   (is (thrown-with-msg?
        ExceptionInfo
        #"The value of 'additionalProperties' MUST be a valid JSON Schema"
-       (schema {"additionalProperties" nil})))
+       (schema/validate {"additionalProperties" nil})))
   (is (thrown-with-msg?
        ExceptionInfo
        #"The value of 'additionalProperties' MUST be a valid JSON Schema"
-       (schema {"additionalProperties" {"type" "foo"}}))))
+       (schema/validate {"additionalProperties" {"type" "foo"}}))))
 
 (deftest dependencies-test
-  (is (schema {"dependencies" {}}))
+  (is (schema/validate {"dependencies" {}}))
   (is (thrown-with-msg?
        ExceptionInfo
        #"The value of 'dependencies' MUST be an object"
-       (schema {"dependencies" true})))
+       (schema/validate {"dependencies" true})))
 
-  (is (schema {"dependencies" {"a" []}}))
-  (is (schema {"dependencies" {"a" ["foo" "bar"]}}))
+  (is (schema/validate {"dependencies" {"a" []}}))
+  (is (schema/validate {"dependencies" {"a" ["foo" "bar"]}}))
   (is (thrown-with-msg?
        ExceptionInfo
        #"Each element in a dependencies array MUST be a string"
-       (schema {"dependencies" {"a" ["foo" 10]}})))
+       (schema/validate {"dependencies" {"a" ["foo" 10]}})))
   (is (thrown-with-msg?
        ExceptionInfo
        #"Each element in a dependencies array MUST be unique"
-       (schema {"dependencies" {"a" ["foo" "foo"]}})))
+       (schema/validate {"dependencies" {"a" ["foo" "foo"]}})))
 
   (is (thrown-with-msg?
        ExceptionInfo
        #"Dependency values MUST be an array or a valid JSON Schema"
-       (schema {"dependencies" {"a" {"type" "foo"}}})))
+       (schema/validate {"dependencies" {"a" {"type" "foo"}}})))
 
   (is (thrown-with-msg?
        ExceptionInfo
        #"Dependency values MUST be an array or a JSON Schema"
-       (schema {"dependencies" {"a" nil}}))))
+       (schema/validate {"dependencies" {"a" nil}}))))
 
 (deftest property-names-test
-  (is (schema {"propertyNames" false}))
-  (is (schema {"propertyNames" true}))
+  (is (schema/validate {"propertyNames" false}))
+  (is (schema/validate {"propertyNames" true}))
   (is (thrown-with-msg?
        ExceptionInfo
        #"The value of 'propertyNames' MUST be a JSON Schema"
-       (schema {"propertyNames" nil})))
+       (schema/validate {"propertyNames" nil})))
   (is (thrown-with-msg?
        ExceptionInfo
        #"The value of 'propertyNames' MUST be a valid JSON Schema"
-       (schema {"propertyNames" {"type" "foo"}}))))
+       (schema/validate {"propertyNames" {"type" "foo"}}))))
 
 (deftest if-test
   (is (thrown-with-msg?
        ExceptionInfo
        #"The value of 'if' MUST be a valid JSON Schema"
-       (schema {"if" {"type" "foo"}}))))
+       (schema/validate {"if" {"type" "foo"}}))))
 
 (deftest then-test
   (is (thrown-with-msg?
        ExceptionInfo
        #"The value of 'then' MUST be a valid JSON Schema"
-       (schema {"then" {"type" "foo"}}))))
+       (schema/validate {"then" {"type" "foo"}}))))
 
 (deftest else-test
   (is (thrown-with-msg?
        ExceptionInfo
        #"The value of 'else' MUST be a valid JSON Schema"
-       (schema {"else" {"type" "foo"}}))))
+       (schema/validate {"else" {"type" "foo"}}))))
+
+(deftest all-of-test
+  (is (thrown-with-msg?
+       ExceptionInfo
+       #"The value of 'allOf' MUST be a non-empty array"
+       (schema/validate {"allOf" {"type" "string"}})))
+  (is (thrown-with-msg?
+       ExceptionInfo
+       #"The value of 'allOf' MUST be a non-empty array"
+       (schema/validate {"allOf" []})))
+  (is (thrown-with-msg?
+       ExceptionInfo
+       #"Each item of an 'allOf' array MUST be a valid schema"
+       (schema/validate {"allOf" [{"type" "foo"}]})))
+  (is (schema/validate {"allOf" [{"type" "string"}]})))
