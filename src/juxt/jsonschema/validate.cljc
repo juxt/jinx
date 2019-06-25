@@ -257,7 +257,7 @@
         ;; Note: recovery steps should be made optional via options,and
         ;; possibly possible to override with multimethods.
 
-        (let [recovered-result
+        #_(let [recovered-result
               (reduce
                (fn [acc result]
                  (let [kw (get-in result [:error :keyword])
