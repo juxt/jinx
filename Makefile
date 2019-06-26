@@ -1,8 +1,10 @@
 .PHONY: 		test watch
 
 test:
-	clj -Atest
+	clj -Atest -e :deprecated
 
+official-test:
+	clj -Atest -i :official
 
 watch:
-	find . -regex ".*\\.clj[cs]?" | entr make test
+	find . -regex ".*\\.clj[cs]?" | entr make official-test
