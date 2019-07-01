@@ -76,7 +76,7 @@
 (defn make-tests []
   (doseq [test (remove exclude-test? (tests TESTS-DIR))]
     (let [testname (symbol (str (gensym "test") "-test"))]
-      (eval `(test/deftest ~testname
+      (eval `(test/deftest ~(vary-meta testname assoc :official true) ~testname
                (test/testing ~(:test-description test)
                  (test/is (success? (test-jsonschema ~test)))))))))
 
