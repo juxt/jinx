@@ -7,4 +7,4 @@ official-test:
 	clj -Atest -i :official
 
 watch:
-	find . -regex ".*\\.clj[cs]?" | entr make official-test
+	find . -regex ".*\\.clj[cs]?" | entr make test
