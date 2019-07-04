@@ -4,8 +4,9 @@
   (:refer-clojure :exclude [number? integer?])
   (:require
    [juxt.jsonschema.core :refer [number? integer? array? object? schema? regex?]]
-   [lambdaisland.uri :refer [join]])
-  #?(:clj  (:import (clojure.lang ExceptionInfo))))
+   [lambdaisland.uri :refer [join]]
+   #?(:cljs [cljs.core :refer [ExceptionInfo]]))
+   #?(:clj  (:import (clojure.lang ExceptionInfo))))
 
 (defn- with-base-uri-meta
   "For each $id in the schema, add metadata to indicate the base-uri."
@@ -249,7 +250,7 @@
          index (into {} (index-by-uri schema))]
      (cond->
       schema
-       (and (instance? clojure.lang.IMeta schema) index)
+       (and  #?(:clj (instance? clojure.lang.IMeta schema) :cljs (satisfies? IMeta schema )) index)
        (with-meta (-> schema meta (assoc :uri->schema index)))))))
 
 ;; TODO: Try against all schemas in test-suite

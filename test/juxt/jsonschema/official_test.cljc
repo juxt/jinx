@@ -10,14 +10,13 @@
                       [juxt.jsonschema.resolve :as resolv]
                       [juxt.jsonschema.schema :as schema])]
       :cljs [(:require [cljs-node-io.core :as io :refer [slurp]]
+                       [cljs-node-io.fs :as fs]
+                       [cljs-node-io.file :refer [File]]
                        [cljs.test :refer-macros [deftest is testing run-tests]]
-                       [juxt.jsonschema.validate-cljc :refer [validate]]
+                       [juxt.jsonschema.validate :refer [validate]]
                        [juxt.jsonschema.schema :refer [schema]]
                        [juxt.jsonschema.resolve :as resolv]
                        [cljs.nodejs :as nodejs]
-                       [cljs.tools.reader :refer [read-string]]
-                       [cljs.js :refer [empty-state eval js-eval]]
-                       [cljs.env :refer [*compiler*]]
                        [juxt.jsonschema.schema :as schema])]))
 
 (defn- env [s]
@@ -37,30 +36,26 @@
 
 
 #?(:cljs
-   (def fs (cljs.nodejs/require "fs")))
-#?(:cljs
-   (def path (cljs.nodejs/require "path")))
-#?(:cljs
-   (defn file-exists? [f]
-     (fs.existsSync f)))
-#?(:cljs
-(defn dir? [f]
-  (and
-   (file-exists? f)
-   (.. fs (lstatSync f) (isDirectory)))))
-#?(:cljs
-(defn file-seq [dir]
-  (if (fs.existsSync dir)
-    (tree-seq
-     dir?
-     (fn [d] (map (partial str d "/") (seq (fs.readdirSync d))))
-     dir)
-    [])))
-
-#?(:cljs
-   (defn read-file-cljs [fname]
-     (when-not (dir? fname)
-        (first (js->clj (js/JSON.parse (.readFileSync fs fname)))))))
+   (do
+     (def fs (cljs.nodejs/require "fs"))
+     (def path (cljs.nodejs/require "path"))
+     (defn file-exists? [f]
+       (fs.existsSync f))
+     (defn dir? [f]
+       (and
+        (file-exists? f)
+        (.. fs (lstatSync f) (isDirectory))))
+     (defn file? [f]
+       (.. fs (lstatSync f) (isFile)))
+     (defn file-seq [dir]
+       (if (fs.existsSync dir)
+         (tree-seq
+          dir?
+          (fn [d] (map (partial str d "/") (seq (fs.readdirSync d))))
+          dir)
+         []))
+     (defn read-file-cljs [fname]
+       (js->clj  (js/JSON.parse (.readFileSync fs fname))))))
 
 (defn test-jsonschema [{:keys [schema data valid] :as test}]
   (try
@@ -72,7 +67,10 @@
                     [::resolv/default-resolver
                      {#"http://localhost:1234/(.*)"
                       (fn [match]
-                        (io/file (io/file TESTS-ROOT "remotes") (second match)))}]]})
+                        #?(:clj (do 
+                                  (io/file (io/file TESTS-ROOT "remotes") (second match)))
+                           :cljs (do 
+                                   (File. (str TESTS-ROOT "/remotes/" (second match))))))}]]})
           success? (if valid (:valid? result)
                        (not (:valid? result)))]
       (cond-> test
@@ -110,8 +108,8 @@
         :data data
         :valid valid})
      :cljs
-     (for [testfile (file-seq TESTS-DIR)
-           :when testfile
+     (for [testfile (filter file? (file-seq TESTS-DIR))
+           :when (file? testfile)
            :let [objects (read-file-cljs testfile)]
            {:strs [schema tests description]} objects
         ;; Any required parsing of the schema, do it now for performance
@@ -134,26 +132,20 @@
      "validation of an internationalized e-mail addresses"}
    (:test-group-description test)))
 
+#?(:clj
+   (do
+     (defn make-tests []
+       (doseq [test (remove exclude-test? (tests TESTS-DIR))]
+         (let [testname (symbol (str (gensym "test") "-test"))]
+           (eval `(test/deftest ~(vary-meta testname assoc :official true) ~testname
+                    (test/testing ~(:test-description test)
+                      (test/is (success? (test-jsonschema ~test)))))))))
+     (make-tests)))
+
 #?(:cljs
-   (defn eval-str [s]
-     (eval (empty-state)
-           (read-string s)
-           {:eval       js-eval
-            :source-map true
-            :context    :expr}
-           (fn [result] result))))
-
-(defn make-tests []
-  (doseq [test (remove exclude-test? (tests TESTS-DIR))]
-    (let [testname (symbol (str (gensym "test") "-test"))]
-      #?(:clj
-         (eval `(test/deftest ~testname
-                  (test/testing ~(:test-description test)
-                    (test/is (success? (test-jsonschema ~test))))))
-         :cljs
-         (eval-str `(deftest ~testname
-                      (testing ~(:test-description test)
-                        (is (success? (test-jsonschema ~test))))))))))
-
-
-(make-tests)
+   (deftest cljssss
+     (testing "something"
+       (doseq [test (remove exclude-test? (tests TESTS-DIR))]
+         (let [testname (symbol (str (gensym "test") "-test"))]
+           (do
+             (is (success? (test-jsonschema test)))))))))

@@ -4,26 +4,29 @@
   (:require
    [juxt.jsonschema.schema :as schema]
    [clojure.string :as str]
+   [juxt.jsonschema.jsonpointer :as jsonpointer]
    #?@(:clj [[cheshire.core :as cheshire]
-             [clojure.java.io :as io]])
-   [juxt.jsonschema.jsonpointer :as jsonpointer])
+             [clojure.java.io :as io]]
+       :cljs [[cljs-node-io.file :refer [File]]
+              [cljs-node-io.core :as io :refer [slurp]]]))
   #?(:cljs (:import goog.Uri))
   #?(:cljs (:require-macros [juxt.jsonschema.resolve :refer [slurp-resource]])))
-
-(defmulti resolve-uri (fn [k uri] (cond (keyword? k) k (coll? k) (first k))))
 
 (defn read-json-string [json-str]
   #?(:clj
      (cheshire/parse-string json-str)
-     :cljs (js/JSON.parse json-str)))
+     :cljs (js->clj (js/JSON.parse json-str))))
 
 (defn read-json-stream [json-str]
   #?(:clj
      (cheshire/parse-stream (io/reader json-str))
-     :cljs (js/JSON.parse json-str)))
+     :cljs (js->clj (js/JSON.parse (slurp json-str)))))
 
-#?(:clj (defmacro slurp-resource [resource]
-          (clojure.core/slurp (str "resources/" resource))))
+#?(:clj
+   (defmacro slurp-resource [resource]
+     (clojure.core/slurp (str "resources/" resource))))
+
+(defmulti resolve-uri (fn [k uri] (cond (keyword? k) k (coll? k) (first k))))
 
 ;; Built-in
 
@@ -42,15 +45,19 @@
 
   #?(:clj Boolean :cljs boolean) (deref-val [res k] res)
 
-  #?(:clj  clojure.lang.IPersistentMap :cljs cljs.core.ICollection)
+  #?(:clj  clojure.lang.IPersistentMap :cljs cljs.core/PersistentArrayMap)
   (deref-val [res k] res)
 
   #?(:clj clojure.lang.Fn :cljs function)
   (deref-val [f k] (deref-val (f k) k))
 
-  #?(:clj java.io.File :cljs object)
-  (deref-val [file k] (read-json-stream file)))
-(defmethod resolve-uri ::default-resolver [[_ m] ^String uri]
+  #?(:clj java.io.File :cljs cljs-node-io.file/File)
+  (deref-val [file k]
+    #?(:clj (read-json-stream file)
+       :cljs (js->clj (read-json-stream file)))
+    ))
+
+(defmethod resolve-uri ::default-resolver [[xx m] ^String uri]
   (when-let
    [[k val]
     (or
@@ -59,7 +66,7 @@
 
         ;; Second, find a matching regex
      (some (fn [[pattern v]]
-             (when (instance? java.util.regex.Pattern pattern)
+             (when  #?(:clj (instance? java.util.regex.Pattern pattern) :cljs (regexp?  pattern))
                (when-let [match (re-matches pattern uri)]
                  [match v])))
            m))]

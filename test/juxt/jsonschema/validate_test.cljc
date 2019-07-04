@@ -1,10 +1,13 @@
 (ns juxt.jsonschema.validate-test
-  (:require
-   [juxt.jsonschema.validate :refer [validate]]
-   [clojure.test :refer [deftest is are testing]]))
+  #?@(:clj [(:require
+             [juxt.jsonschema.validate :as validate]
+             [clojure.test :refer [deftest is are testing]])]
+      :cljs [(:require
+              [juxt.jsonschema.validate :as validate]
+              [cljs.test :refer-macros [deftest is are testing run-tests]])]))
 
 (defn run-validate [instance schema]
-  (let [result (validate instance schema)]
+  (let [result (validate/validate instance schema)]
     [(:valid? result) (:instance result)]))
 
 (deftest boolean-schema-test []
@@ -245,7 +248,7 @@
            "properties" {"foo" {"type" "object"
                                 "properties" {"bar" {"type" "string"}}}}}))))
 
-(deftest properties-test
+(deftest properties-test1
   (is (= [true {"foo" "bar"}]
          (run-validate
           {}
