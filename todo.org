@@ -58,12 +58,15 @@ file:/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/
 - [X] RFC 6531
 * DONE [#B] 7. Semantic Validation With "format"
 * TODO Fix remaining format tests (uri-template and idn-email), currently ignored
-* TODO Finish schema validation (if, then, else, allOf, anyOf, oneOf, not, format)
-* TODO Recursion protection (use schema-path visited hash-set)
+* DONE Finish schema validation (if, then, else)
+* DONE Finish schema validation (allOf, anyOf, oneOf, not)
+* DONE Finish schema validation (format)
+* TODO [#A] Annotations
+** TODO oneOf
+* TODO [#C] Recursion protection (use schema-path visited hash-set)
 * TODO [#C] 8. String-Encoding Non-JSON Data
 * TODO [#C] 9. Schema Re-Use With "definitions"
 * TODO [#C] 10. Schema Annotations
-* TODO Annotations
 * TODO Default value annotations factored into oneOf in dependencies
 * TODO Relative jsonpointer
 * TODO Improve jsonpointer "Failed to locate" error messages
@@ -71,8 +74,9 @@ file:/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/
 * TODO Download Ajv to compare
 * TODO Compare with luposlip/json-schema/, particularly errors
 * TODO Download release zip of JSON-Schema-Test-Suite or try with tools.deps tech to download git repo
-* TODO Implement regex grammar to detect bad regex patterns https://www.ecma-international.org/ecma-262/9.0/index.html#sec-literals-regular-expression-literals
-** TODO This needs to be implemented for both
-- [ ] schema validation (pattern) and
-- [ ] instance format validation.
-** TODO Use CircleCI (or TravisCI) to automatically run tests
+* TODO [#C] Validation of schema regex value must conform to regex
+** TODO Implement regex grammar to detect bad regex patterns https://www.ecma-international.org/ecma-262/9.0/index.html#sec-literals-regular-expression-literals
+*** TODO This needs to be implemented for both
+ - [ ] schema validation (pattern) and
+ - [ ] instance format validation.
+*** TODO Use CircleCI (or TravisCI) to automatically run tests

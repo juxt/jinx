@@ -206,7 +206,7 @@
     (throw (ex-info "The value of 'dependencies' MUST be an object" {})))
   (doseq [v (vals v)]
     (when-not (or (array? v) (schema? v))
-      (throw (ex-info "Dependency values MUST be an array or a valid JSON Schema" {:value v})))
+      (throw (ex-info "Dependency values MUST be an array or a JSON Schema" {:value v})))
     (when (and (array? v) (not-empty v))
       (when-not (every? string? v)
         (throw (ex-info "Each element in a dependencies array MUST be a string" {})))
@@ -220,24 +220,94 @@
 
 (defmethod validate-keyword "propertyNames" [kw v options]
   (when-not (schema? v)
-    (throw (ex-info "The value of 'propertyNames' MUST be a valid JSON Schema" {:value v})))
+    (throw (ex-info "The value of 'propertyNames' MUST be a JSON Schema" {:value v})))
   (try
     (validate v options)
     (catch ExceptionInfo cause
       (throw (ex-info "The value of 'propertyNames' MUST be a valid JSON Schema" {:value v} cause)))))
 
-;; TODO: propertyNames
+(defmethod validate-keyword "if" [kw v options]
+  (when-not (schema? v)
+    (throw (ex-info "The value of 'if' MUST be a JSON Schema" {:value v})))
+  (try
+    (validate v options)
+    (catch ExceptionInfo cause
+      (throw (ex-info "The value of 'if' MUST be a valid JSON Schema" {:value v} cause)))))
 
-(defn- validate
+(defmethod validate-keyword "then" [kw v options]
+  (when-not (schema? v)
+    (throw (ex-info "The value of 'then' MUST be a JSON Schema" {:value v})))
+  (try
+    (validate v options)
+    (catch ExceptionInfo cause
+      (throw (ex-info "The value of 'then' MUST be a valid JSON Schema" {:value v} cause)))))
+
+(defmethod validate-keyword "else" [kw v options]
+  (when-not (schema? v)
+    (throw (ex-info "The value of 'else' MUST be a JSON Schema" {:value v})))
+  (try
+    (validate v options)
+    (catch ExceptionInfo cause
+      (throw (ex-info "The value of 'else' MUST be a valid JSON Schema" {:value v} cause)))))
+
+(defmethod validate-keyword "allOf" [kw v options]
+  (when-not (array? v)
+    (throw (ex-info "The value of 'allOf' MUST be a non-empty array" {:value v})))
+  (when (empty? v)
+    (throw (ex-info "The value of 'allOf' MUST be a non-empty array" {:value v})))
+  (doseq [subschema v]
+    (try
+      (validate subschema options)
+      (catch ExceptionInfo cause
+        (throw (ex-info "Each item of an 'allOf' array MUST be a valid schema" {:value v} cause))))))
+
+(defmethod validate-keyword "anyOf" [kw v options]
+  (when-not (array? v)
+    (throw (ex-info "The value of 'anyOf' MUST be a non-empty array" {:value v})))
+  (when (empty? v)
+    (throw (ex-info "The value of 'anyOf' MUST be a non-empty array" {:value v})))
+  (doseq [subschema v]
+    (try
+      (validate subschema options)
+      (catch ExceptionInfo cause
+        (throw (ex-info "Each item of an 'anyOf' array MUST be a valid schema" {:value v} cause))))))
+
+(defmethod validate-keyword "oneOf" [kw v options]
+  (when-not (array? v)
+    (throw (ex-info "The value of 'oneOf' MUST be a non-empty array" {:value v})))
+  (when (empty? v)
+    (throw (ex-info "The value of 'oneOf' MUST be a non-empty array" {:value v})))
+  (doseq [subschema v]
+    (try
+      (validate subschema options)
+      (catch ExceptionInfo cause
+        (throw (ex-info "Each item of an 'oneOf' array MUST be a valid schema" {:value v} cause))))))
+
+(defmethod validate-keyword "not" [kw v options]
+  (when-not (schema? v)
+    (throw (ex-info "The value of 'not' MUST be a JSON Schema" {:value v})))
+  (try
+    (validate v options)
+    (catch ExceptionInfo cause
+      (throw (ex-info "The value of 'not' MUST be a valid JSON Schema" {:value v} cause)))))
+
+(defmethod validate-keyword "format" [kw v options]
+  (when-not (string? v)
+    (throw (ex-info "The value of a 'format' attribute MUST be a string" {:value v}))))
+
+(defn validate
   "Validate a schema, checking it obeys conformance rules. When
   the :strict? option is truthy, rules that contain SHOULD are
   considered errors."
-  [schema options]
-  (or
-   (boolean? schema)
-   (nil? schema)
-   (doseq [[k v] (seq schema)]
-     (validate-keyword k v options))))
+  ([schema]
+   (validate schema {:strict? true}))
+  ([schema options]
+   (or
+    (boolean? schema)
+    (nil? schema)
+    (doseq [[k v] (seq schema)]
+      (validate-keyword k v options))
+    schema)))
 
 (defn schema
   ([s]

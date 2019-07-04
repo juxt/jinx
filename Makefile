@@ -8,6 +8,8 @@ STYLESHEET = juxt.css
 
 .PHONY: 		watch default deploy test 
 
+official-test:
+	clj -Atest -i :official
 
 test-clj:
 			clojure -Atest -e deprecated

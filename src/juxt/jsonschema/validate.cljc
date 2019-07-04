@@ -22,6 +22,43 @@
      :cljs
      (js/JSON.parse json-str)))
 
+;; "Since many subschemas can be applicable to any single location,
+;; annotation keywords need to specify any unusual handling of
+;; multiple applicable occurrences of the keyword with different
+;; values."
+(defmulti handle-multiple-annotations (fn [kw annotations] kw))
+
+;; "The default behavior is simply to collect all values."
+(defmethod handle-multiple-annotations :default [kw annotations]
+  annotations)
+
+(defmethod handle-multiple-annotations "title" [kw annotations]
+  annotations)
+
+(defmethod handle-multiple-annotations "description" [kw annotations]
+  annotations)
+
+(defmethod handle-multiple-annotations "default" [kw annotations]
+  ;; "When multiple occurrences of this keyword are applicable to a
+  ;; single sub-instance, implementations SHOULD remove duplicates."
+  (distinct annotations))
+
+(defn ->sequential [x] (if (sequential? x) x [x]))
+
+(defn merge-annotations [& maps]
+  (->> maps
+       (mapcat identity)
+       (group-by first)
+       (map (fn [[k v]] [k (mapcat ->sequential (map second v))]))
+       (map (fn [[k v]] [k (handle-multiple-annotations k v)]))
+       (into {})))
+
+(comment
+  (merge-annotations
+   [{"title" "foo" "examples" [:foo :foo2]}
+    {"title" "bar" "examples" [:bar]}
+    {"title" "zip" "examples" [:zip1 :zippy]}]))
+
 (declare validate*)
 
 (defn array? [x]
@@ -46,12 +83,17 @@
   However, given there are some exceptions, the full schema object is
   also provided as a map.
 
-  The instance arg is the latest version of the instance currently
-  established, not (necessarily) the original data value.
-  "
-  (fn [keyword value instance ctx] keyword))
+  The instance and annotations args are the latest version of the
+  instance currently established, not (necessarily) the original data
+  value.
 
-(defmethod process-keyword :default [k value instance ctx]
+  A method can update the values of the instance and annotations by
+  returning a map optionally containing :instance and :annotations
+  correspondingly.
+  "
+  (fn [keyword value instance annotations ctx] keyword))
+
+(defmethod process-keyword :default [k value instance annotations ctx]
   ;; A JSON Schema MAY contain properties which are not schema
   ;; keywords. Unknown keywords SHOULD be ignored. -- JSON Schema Core, 4.3.1
   ;;
@@ -75,25 +117,25 @@
 ;; via the journal. If we can't solve, we throw errors. Errors are
 ;; fatal.
 
-(defmethod process-keyword "title" [k title instance ctx]
-  (when (string? title)
-    {:annotation {:title title}}))
+(defmethod process-keyword "title" [k title instance annotations ctx]
+  {:annotations (assoc annotations "title" title)})
 
-(defmethod process-keyword "description" [k description instance ctx]
-  (when (string? description)
-    {:annotation {:description description}}))
+(defmethod process-keyword "description" [k description instance annotations ctx]
+  {:annotations (assoc annotations "description" description)})
 
-(defmethod process-keyword "default" [k default instance ctx]
-  (let [instance (peek-through ctx :instance)]
-    (merge
-     {:annotation {:default default}}
-     (if-not (some? instance)
-       {:instance default
-        :default-used? true}))))
+(defmethod process-keyword "default" [k default instance annotations ctx]
+  (merge
+   {:annotations (assoc annotations "default" default)}
+   (when (not (some? instance)) {:value default})))
 
-(defmethod process-keyword "examples" [k examples instance ctx]
-  (when (array? examples)
-    {:annotation {:examples examples}}))
+(defmethod process-keyword "readOnly" [k read-only instance annotations ctx]
+  {:annotations (assoc annotations "readOnly" read-only)})
+
+(defmethod process-keyword "writeOnly" [k write-only instance annotations ctx]
+  {:metadata (assoc annotations "writeOnly" write-only)})
+
+(defmethod process-keyword "examples" [k examples instance annotations ctx]
+  {:metadata (assoc annotations "examples" examples)})
 
 ;; TODO: These must check against JavaScript primitive types,
 ;; not Clojure/Java ones
@@ -116,44 +158,41 @@
    "string" string?
    "integer" integer?})
 
+(defmethod process-keyword "type" [_ type instance annotations ctx]
+  (cond
+    (string? type)
+    (if-let [pred (get type-preds type)]
+      (if (pred instance)
+        {:type type}
+        ;; TODO: We have an error, but we should first try to coerce -
+        ;; e.g. string->number, number->string
+        {:error
+         {:message (str "Instance of "(pr-str instance) "is not of type "(pr-str type))                          
+          :instance instance
+          :type type}})
 
-;; There is no instance, which means no default.
+      ;; Nil pred
+      #?(:clj
+         (throw (IllegalStateException. "Invalid schema detected"))
+         :cljs
+         (throw (js/Error. "Invalid schema detected"))))
+      (array? type)
+      (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
+      ;; TODO: Find out _which_ type it matches, and instantiate _that_
+        {:error {:message (str "Value must be of type " (str/join " or " (pr-str type)))}})))
 
-;; As a recovery step, we will try to default the instance here.
-
-    ;; Note: recovery steps should be made optional via options,and
-    ;; possibly possible to override with multimethods.
-
-(defmethod process-keyword "type" [_ type _ ctx]
-  (let [instance (peek-through ctx :instance)]
-    (cond
-      (string? type)
-      (if-let [pred (get type-preds type)]
-        (when-not (pred instance)
-          ;; TODO: We have an error, but we should first try to coerce - e.g. string->number, number->string
-          
-          {:error
-           {:message (str "Instance of " (pr-str instance) " is not of type " (pr-str type))
-            :instance instance
-            :type type}})
-
-        ;; Nil pred
-        (throw (ex-info "Invalid schema detected" {})))
-
-        (array? type)
-        (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
-        ;; TODO: Find out _which_ type it matches, and instantiate _that_
-          {:error {:message (str "Value must be of type " (str/join " or " (pr-str type)))}}))))
+;; TODO: Possibly replace :errors with :invalid? such that :invalid?
+;; is not a boolean but contains the errors.
 
 ;; TODO: Pass schema-path (and data-path) in a 'ctx' arg, not options
 ;; (keep 'options' constant). Demote 'doc' to 'ctx' entry, which
 ;; should also contain 'base-uri'. Only do this refactoring once the tests are working.
 
-(defmethod process-keyword "enum" [k enum instance ctx]
+(defmethod process-keyword "enum" [k enum instance annotations ctx]
   (when-not (contains? (set enum) instance)
     {:error {:message (str "Value " instance" must be in enum " enum)}}))
 
-(defmethod process-keyword "const" [k const instance ctx]
+(defmethod process-keyword "const" [k const instance annotations ctx]
   (when-not (= const instance)
     {:error {:message (str "Value "instance" must be equal to const "  const)}}))
 
@@ -163,7 +202,7 @@
 ;               :cljs (if-not (= (js/parseInt. (/ instance multiple-of)) (/ instance multiple-of))
 ;                       {:error {:message "Failed multipleOf check"}})))))
 
-(defmethod process-keyword "multipleOf" [k multiple-of instance ctx]
+(defmethod process-keyword "multipleOf" [k multiple-of instance annotations ctx]
   (when (number? instance)
     (when-not  (= 0
                 #?(:clj (.compareTo (.remainder (bigdec instance) (bigdec multiple-of)) BigDecimal/ZERO)
@@ -171,27 +210,27 @@
       {:error {:message "Failed multipleOf check"}})))
                 
 
-(defmethod process-keyword "maximum" [k maximum instance ctx]
+(defmethod process-keyword "maximum" [k maximum instance annotations ctx]
   (when (number? instance)
     (when-not (<= instance maximum)
       {:error {:message "Failed maximum check"}})))
 
-(defmethod process-keyword "exclusiveMaximum" [k exclusive-maximum instance ctx]
+(defmethod process-keyword "exclusiveMaximum" [k exclusive-maximum instance annotations ctx]
   (when (number? instance)
     (when-not (< instance exclusive-maximum)
       {:error {:message "Failed exclusiveMaximum check"}})))
 
-(defmethod process-keyword "minimum" [k minimum instance ctx]
+(defmethod process-keyword "minimum" [k minimum instance annotations ctx]
   (when (number? instance)
     (when-not (>= instance minimum)
       {:error {:message "Failed minimum check"}})))
 
-(defmethod process-keyword "exclusiveMinimum" [k exclusive-minimum instance ctx]
+(defmethod process-keyword "exclusiveMinimum" [k exclusive-minimum instance annotations ctx]
   (when (number? instance)
     (when-not (> instance exclusive-minimum)
       {:error {:message "Failed exclusiveMinimum check"}})))
 
-(defmethod process-keyword "maxLength" [k max-length instance ctx]
+(defmethod process-keyword "maxLength" [k max-length instance annotations ctx]
   (when (string? instance)
     ;; See https://github.com/networknt/json-schema-validator/issues/4
     (when (> #?(:clj (.codePointCount instance 0 (.length instance))
@@ -199,7 +238,7 @@
                 max-length)
       {:error {:message "String is too long"}})))
 
-(defmethod process-keyword "minLength" [k min-length instance ctx]
+(defmethod process-keyword "minLength" [k min-length instance annotations ctx]
   (when (string? instance)
     (when (<
            #?(:clj (.codePointCount instance 0 (.length instance))
@@ -207,7 +246,7 @@
            min-length)
       {:error {:message "String is too short"}})))
 
-(defmethod process-keyword "pattern" [_ pattern instance ctx]
+(defmethod process-keyword "pattern" [_ pattern instance annotations ctx]
   (when (string? instance)
     (when-not (re-seq (re-pattern pattern) instance)
       {:error {:message (str "String does not match pattern " pattern)}})))
@@ -215,70 +254,71 @@
 ;; TODO: Show paths in error messages
 ;; TODO: Improve error messages, possibly copying Ajv or org.everit json-schema
 
-(defmethod process-keyword "items" [_ items _ {:keys [schema state options] :as ctx}]
-  (let [instance (peek-through ctx :instance)]
-    (when (array? instance)
-      (cond
-        (object? items)
-        (let [children
-              (for [[idx child-instance] (map-indexed vector instance)]
-                (assoc (validate* child-instance items ctx)
-                       :index idx))]
-          (if (every? :valid? children)
-            {:items children}
-            {:error {:message "Not all items are valid"
-                     :bad-items (filter :errors children)}}))
+(defmethod process-keyword "items" [_ items instance annotations {:keys [schema] :as ctx}]
+  (when (array? instance)
+    (cond
+      (object? items)
+      (let [children
+            (for [[idx child-instance] (map-indexed vector instance)]
+              (assoc (validate* child-instance items ctx)
+                     :index idx))]
+        (if (every? :valid? children)
+          ;;(merge instance {:items children})
+          {:items children}
+          {:error {:message "Not all items are valid"
+                   :bad-items (filter :errors children)}}))
 
-        (boolean? items)
-        ;; TODO: Add a test for this
-        (when (and (false? items) (not-empty instance))
-          {:error {:message "Items must be empty to satisfy a false schema"}})
+      (boolean? items)
+      ;; TODO: Add a test for this
+      (when (and (false? items) (not-empty instance))
+        {:error {:message "Items must be empty to satisfy a false schema"}})
 
-        (array? items)
-        (let [children
-              (for [[idx child-schema child-instance] (map vector (range) (concat items (repeat (get schema "additionalItems"))) instance)]
-                (assoc
-                 (validate* child-instance child-schema ctx)
-                 :index idx))]
-          (if (every? :valid? children)
-            {:items children}
-            {:error {:message "Not all items are valid"
-                     :bad-items (filter :errors children)}}))))))
+      (array? items)
+      (let [children
+            (for [[idx child-schema child-instance] (map vector (range) (concat items (repeat (get schema "additionalItems"))) instance)]
+              (assoc
+               (validate* child-instance child-schema ctx)
+               :index idx))]
+        (if (every? :valid? children)
+          ;;(merge instance {:items children})
+          {:items children}
+          {:error {:message "Not all items are valid"
+                   :bad-items (filter :errors children)}})))))
 
-(defmethod process-keyword "maxItems" [k max-items instance ctx]
+(defmethod process-keyword "maxItems" [k max-items instance annotations ctx]
   (when (array? instance)
     (when (> (count instance) max-items)
       {:error {:message "maxItems exceeded"}})))
 
-(defmethod process-keyword "minItems" [k min-items instance ctx]
+(defmethod process-keyword "minItems" [k min-items instance annotations ctx]
   (when (array? instance)
     (when (< (count instance) min-items)
       {:error {:message "minItems not reached"}})))
 
-(defmethod process-keyword "uniqueItems" [k unique-items? instance ctx]
+(defmethod process-keyword "uniqueItems" [k unique-items? instance annotations ctx]
   (when (and (array? instance) unique-items?)
     (when-not (apply distinct? instance)
       {:error {:message "Instance elements are not all unique"}})))
 
-(defmethod process-keyword "contains" [k contains instance ctx]
+(defmethod process-keyword "contains" [k contains instance annotations ctx]
   (when (array? instance)
-    ;; Let annotations surface in other keywords
+    ;; Let metadata surface in other keywords
     (let [results (map #(validate* % contains ctx) instance)]
       (cond-> {:contains results}
         (not (some :valid? results))
         (assoc :error {:message "Instance is not valid against schema"})))))
 
-(defmethod process-keyword "maxProperties" [k max-properties instance ctx]
+(defmethod process-keyword "maxProperties" [k max-properties instance annotations ctx]
   (when (object? instance)
     (when-not (<= (count (keys instance)) max-properties)
       {:error {:message "Max properties exceeded"}})))
 
-(defmethod process-keyword "minProperties" [k min-properties instance ctx]
+(defmethod process-keyword "minProperties" [k min-properties instance annotations ctx]
   (when (object? instance)
     (when-not (<= min-properties (count (keys instance)))
       {:error {:message "Min properties not reached"}})))
 
-(defmethod process-keyword "required" [_ required instance {:keys [schema] :as ctx}]
+(defmethod process-keyword "required" [_ required instance annotations {:keys [schema] :as ctx}]
   (when (object? instance)
     (let [results
           (keep
@@ -313,28 +353,32 @@
           (cond-> recovered-result
             (:causes recovered-result) (assoc :error "One or more required properties not found in object")))))))
 
-(defmethod process-keyword "properties" [_ properties instance {:keys [state schema state options] :as ctx}]
+(defmethod process-keyword "properties" [_ properties instance annotations ctx]
   (when (object? instance)
-    (let [validations (for [[kw child] instance
-                            :let [subschema (get properties kw)]
-                            :when (some? subschema)
-                            :let [validation (validate* child subschema ctx)]]
-                        (assoc validation :keyword kw))
+    (let [validations
+          (for [[kw child] instance
+                :let [subschema (get properties kw)]
+                :when (some? subschema)
+                :let [validation (validate* child subschema ctx)]]
+            (merge {:keyword kw} validation))
 
-          result (reduce
-                  (fn [acc result]
-                    (cond-> acc
-                      (not (:valid? result))
-                      (assoc-in [:causes (:keyword result)] (:errors result))))
+          result
+          (reduce
+           (fn [acc result]
+             (cond-> acc
+               (not (:valid? result))
+               (assoc-in [:causes (:keyword result)] (:errors result))))
 
-                  {:instance instance}
-                  validations)]
+           {:instance instance}
+           validations)]
 
-      (when-let [causes (:causes result)]
+      (if-let [causes (:causes result)]
         {:error {:message "Some properties failed to validate against their schemas"
-                 :causes causes}}))))
+                 :causes causes}}
+        ;; Merge annotations
+        {:annotations (assoc annotations :properties (into {} (map (juxt :keyword :annotations) validations)))}))))
 
-(defmethod process-keyword "patternProperties" [k pattern-properties instance ctx]
+(defmethod process-keyword "patternProperties" [k pattern-properties instance annotations ctx]
   (when (object? instance)
     (let [compiled-pattern-properties (map (fn [[k v]] [(re-pattern k) v]) pattern-properties)]
       (let [children
@@ -348,7 +392,7 @@
           {:error
            {:message "Matched pattern property's schema does not succeed"}})))))
 
-(defmethod process-keyword "additionalProperties" [k additional-properties instance {:keys [schema] :as ctx}]
+(defmethod process-keyword "additionalProperties" [k additional-properties instance annotations {:keys [schema] :as ctx}]
   (when (object? instance)
     (let [properties (set (keys (get schema "properties")))
           ;; TODO: This is wasteful, to recompile these pattern properties again
@@ -365,7 +409,7 @@
                                     {:message "An additional property failed the schema check"
                                      :causes children}})))))
 
-(defmethod process-keyword "dependencies" [k dependencies instance ctx]
+(defmethod process-keyword "dependencies" [k dependencies instance annotations ctx]
   (when (object? instance)
     (let [dependency-results
           (for [[kw dvalue] dependencies
@@ -397,7 +441,7 @@
         (:error result)
         (assoc-in [:error :message] "Some dependencies had validation errors")))))
 
-(defmethod process-keyword "propertyNames" [k property-names instance ctx]
+(defmethod process-keyword "propertyNames" [k property-names instance annotations ctx]
   (when (object? instance)
     (let [children
           (for [propname (keys instance)]
@@ -406,27 +450,25 @@
         {:error "propertyNames"
          :failures (filter (comp not :valid?) children)}))))
 
-(defmethod process-keyword "allOf" [k all-of instance ctx]
-  (let [failures
-        (for [subschema all-of
-              :let [failure (validate* instance subschema ctx)]
-              :when (not (:valid? failure))]
-          failure)]
-    (when (not-empty failures)
-      {:error
-       {:message "allOf schema failed due to subschema failing"
-        :causes failures}})))
+(defmethod process-keyword "allOf" [k all-of instance annotations ctx]
+  (let [results (for [subschema all-of]
+                  (validate* instance subschema ctx))]
+    (let [failures (remove :valid? results)]
+      (merge
+       (when (not-empty failures)
+         {:error
+          {:message "allOf schema failed due to subschema failing"
+           :causes failures}})
+       {:annotations (apply merge-annotations annotations (map :annotations (filter :valid? results)))}))))
 
-(defmethod process-keyword "anyOf" [k any-of instance ctx]
+(defmethod process-keyword "anyOf" [k any-of instance annotations ctx]
   (let [results (for [[subschema idx] (map vector any-of (range))]
                   (validate* instance subschema ctx))]
-    (cond-> {}
-      true
-      {:results results}
+    (cond-> {:annotations (apply merge-annotations annotations (map :annotations (filter :valid? results)))}
       (not (some :valid? results))
       (merge {:error {:message "No schema validates for anyOf validation"}}))))
 
-(defmethod process-keyword "oneOf" [k one-of instance ctx]
+(defmethod process-keyword "oneOf" [k one-of instance annotations ctx]
   (let [validations
         (doall
          (for [subschema one-of]
@@ -442,11 +484,11 @@
 
       :else (first successes))))
 
-(defmethod process-keyword "not" [k not instance ctx]
+(defmethod process-keyword "not" [k not instance annotations ctx]
   (when (:valid? (validate* instance not ctx))
     {:error {:message "Schema should not be valid"}}))
 
-(defmethod process-keyword "if" [_ if instance {:keys [schema] :as ctx}]
+(defmethod process-keyword "if" [_ if instance annotations {:keys [schema] :as ctx}]
   (if (:valid? (validate* instance if ctx))
     (when-let [then (get schema "then")]
       ;; TODO: validate* returns errors!
@@ -632,8 +674,7 @@
           {:format fmt   
            :error {:message "Illegal regex"}})))))
 
-
-(defmethod process-keyword "format" [_ format instance ctx]
+(defmethod process-keyword "format" [_ format instance annotations ctx]
   ;; TODO: This is optional, so should be possible to disable via
   ;; options - see 7.2 of draft-handrews-json-schema-validation-01:
   ;; "they SHOULD offer an option to disable validation for this
@@ -650,7 +691,7 @@
                   (catch js/Error e)))
                   nil instance))
 
-(defmethod process-keyword "contentEncoding" [k content-encoding instance ctx]
+(defmethod process-keyword "contentEncoding" [k content-encoding instance annotations ctx]
   ;; TODO: This is optional, so should be possible to disable via
   ;; options - see 8.2 of draft-handrews-json-schema-validation-01:
   ;; "Implementations MAY support the "contentMediaType" and
@@ -665,7 +706,7 @@
               :cljs js/Error) e
         {:error {:message "Not base64"}}))))
 
-(defmethod process-keyword "contentMediaType" [k content-media-type instance {:keys [schema] :as ctx}]
+(defmethod process-keyword "contentMediaType" [k content-media-type instance annotations {:keys [schema] :as ctx}]
   ;; TODO: This is optional, so should be possible to disable via
   ;; options - see 8.2 of draft-handrews-json-schema-validation-01:
   ;; "Implementations MAY support the "contentMediaType" and
@@ -734,11 +775,14 @@
       :else
       (let [keywords
             (or
+             ;; TODO: Should rename :keywords to :vocabulary?
              (:keywords options)
              ["$schema"
               "definitions"
 
-              ;; Process annotations first as these can affect the instance
+              ;; Process annotations first. The "default" annotation
+              ;; can affect the instance which may impact the
+              ;; validation of subsequent keywords.
               "title"
               "description"
               "default"
@@ -773,20 +817,30 @@
                            (if k
                              (if-let [result (process-keyword
                                               kw v
-                                              #_instance ; original
-                                              (some-some? :instance acc) ; curated
-                                              (assoc ctx :acc acc))]
-                               (conj acc (assoc result :keyword kw))
+                                              (:instance acc)
+                                              (:annotations acc)
+                                              ctx)]
+                               (cond-> acc
+                                 true (update :journal conj (merge {:keyword kw} result))
+                                 (find result :instance) (assoc :instance (:instance result))
+                                 (find result :annotations) (assoc :annotations (:annotations result))
+                                 (find result :type) (assoc :type (:type result)))
                                acc)
                              acc)))
-                       (list {:instance instance :keyword :init})
+                       {:journal []
+                        :instance instance
+                        :annotations {}}
                        (distinct (concat keywords (keys schema))))]
-          (let [errors (reverse (keep :error results))]
-            (merge
-             {:instance (some-some? :instance results)
-              :valid? (empty? errors)}
-             (when (not-empty errors) {:errors (vec errors)})
-             (when (:journal? options) {:journal (reverse results)}))))))))
+          (let [errors (keep :error (:journal results))]
+            (let [res
+                  (merge
+                   {:instance (:instance results)
+                    :annotations (:annotations results)
+                    :type (:type results)
+                    :valid? (empty? errors)}
+                   (when (not-empty errors) {:errors (vec errors)})
+                   (when (:journal? options) {:journal (vec (:journal results))}))]
+              res)))))))
 
 (defn validate
   "Instance should come first do support the Clojure thread-first
