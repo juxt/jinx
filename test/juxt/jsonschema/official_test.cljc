@@ -132,6 +132,19 @@
      "validation of an internationalized e-mail addresses"}
    (:test-group-description test)))
 
+(defn cljs-exclude-test? [test]
+  (or (contains?
+        #{"format: uri-template"
+         }
+       (:test-group-description test))
+      (contains?
+       #{"two supplementary Unicode code points is long enough"
+         "one supplementary Unicode code point is not long enough"
+         "an invalid IRI based on IPv6"
+         "0.0075 is multiple of 0.0001"
+         "0.00751 is not multiple of 0.0001"}
+       (:test-description test))))
+
 #?(:clj
    (do
      (defn make-tests []
@@ -143,9 +156,9 @@
      (make-tests)))
 
 #?(:cljs
-   (deftest cljssss
-     (testing "something"
-       (doseq [test (remove exclude-test? (tests TESTS-DIR))]
+   (deftest cljs-tests
+     (testing "Testing JSON-Schema-Test-Suite - cljs"
+       (doseq [test (remove cljs-exclude-test? (tests TESTS-DIR))]
          (let [testname (symbol (str (gensym "test") "-test"))]
            (do
              (is (success? (test-jsonschema test)))))))))

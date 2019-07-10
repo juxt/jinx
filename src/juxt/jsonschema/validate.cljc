@@ -11,8 +11,8 @@
    [lambdaisland.uri :as uri]
    #?(:clj
       [cheshire.core :as cheshire]
-   :cljs
-   [goog.crypt.base64 :as b64])))
+      :cljs
+      [goog.crypt.base64 :as b64])))
 
 
 
@@ -195,12 +195,6 @@
 (defmethod process-keyword "const" [k const instance annotations ctx]
   (when-not (= const instance)
     {:error {:message (str "Value "instance" must be equal to const "  const)}}))
-
-; (defmethod process-keyword "multipleOf" [k multiple-of instance ctx]
-;   (when (number? instance)
-;     #?(:clj (when-not  (= 0 (.compareTo (.remainder (bigdec instance) (bigdec multiple-of)) BigDecimal/ZERO))
-;               :cljs (if-not (= (js/parseInt. (/ instance multiple-of)) (/ instance multiple-of))
-;                       {:error {:message "Failed multipleOf check"}})))))
 
 (defmethod process-keyword "multipleOf" [k multiple-of instance annotations ctx]
   (when (number? instance)
@@ -686,9 +680,7 @@
   (case content-encoding
     "base64" #?(:clj (String. (.decode (java.util.Base64/getDecoder) instance))
                 :cljs 
-                (try
-                  (b64/decodeString instance false)
-                  (catch js/Error e)))
+                  (b64/decodeString instance false))
                   nil instance))
 
 (defmethod process-keyword "contentEncoding" [k content-encoding instance annotations ctx]
