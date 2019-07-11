@@ -22,6 +22,27 @@
      :cljs
      (js/JSON.parse json-str)))
 
+(defn char-code-at [str pos]
+  #?(:clj (.charAt str pos)
+     :cljs (.charCodeAt str pos)))
+
+(defn char-seq
+  "Return a seq of the characters in a string, making sure not to split up
+  UCS-2 (or is it UTF-16?) surrogate pairs. Because JavaScript. And Java."
+  ([str]
+   (char-seq str 0))
+  ([str offset]
+   (if (>= offset (count str))
+     ()
+     (let [code (char-code-at str offset)
+           width (if (<= 0xD800 (int code) 0xDBFF) 2 1)] ; detect "high surrogate"
+       (cons (subs str offset (+ offset width))
+             (char-seq str (+ offset width)))))))
+
+(defn floatRem [i m]
+  (let [prec (min (count (second (clojure.string/split (str i) "."))) (count (second (clojure.string/split (str m) "."))))]
+    (rem (* i (reduce * (repeat  prec 10))) (* m (reduce * (repeat prec 10))))))
+
 ;; "Since many subschemas can be applicable to any single location,
 ;; annotation keywords need to specify any unusual handling of
 ;; multiple applicable occurrences of the keyword with different
@@ -200,7 +221,7 @@
   (when (number? instance)
     (when-not  (= 0
                 #?(:clj (.compareTo (.remainder (bigdec instance) (bigdec multiple-of)) BigDecimal/ZERO)
-                   :cljs (rem instance multiple-of)))
+                   :cljs (if (or (float? instance) (float? multiple-of)) (floatRem instance multiple-of) (rem instance multiple-of))))
       {:error {:message "Failed multipleOf check"}})))
                 
 
@@ -228,7 +249,7 @@
   (when (string? instance)
     ;; See https://github.com/networknt/json-schema-validator/issues/4
     (when (> #?(:clj (.codePointCount instance 0 (.length instance))
-                :cljs (count instance))
+                :cljs (count (char-seq instance)))
                 max-length)
       {:error {:message "String is too long"}})))
 
@@ -236,7 +257,7 @@
   (when (string? instance)
     (when (<
            #?(:clj (.codePointCount instance 0 (.length instance))
-              :cljs (count instance))
+              :cljs (count (char-seq instance)))
            min-length)
       {:error {:message "String is too short"}})))
 

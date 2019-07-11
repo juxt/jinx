@@ -138,11 +138,9 @@
          }
        (:test-group-description test))
       (contains?
-       #{"two supplementary Unicode code points is long enough"
-         "one supplementary Unicode code point is not long enough"
+       #{
          "an invalid IRI based on IPv6"
-         "0.0075 is multiple of 0.0001"
-         "0.00751 is not multiple of 0.0001"}
+         }
        (:test-description test))))
 
 #?(:clj
