@@ -4,9 +4,9 @@
   (:refer-clojure :exclude [number? integer?])
   (:require
    [juxt.jsonschema.core :refer [number? integer? array? object? schema? regex?]]
-   [lambdaisland.uri :refer [join]])
-  (:import
-   (clojure.lang ExceptionInfo)))
+   [lambdaisland.uri :refer [join]]
+   #?(:cljs [cljs.core :refer [ExceptionInfo]]))
+  #?(:clj  (:import (clojure.lang ExceptionInfo))))
 
 (defn- with-base-uri-meta
   "For each $id in the schema, add metadata to indicate the base-uri."
@@ -57,9 +57,9 @@
 
   (let [legal #{"null" "boolean" "object" "array" "number" "string" "integer"}]
     (when-not
-        (or
-         (and (string? v) (contains? legal v))
-         (and (array? v) (every? #(contains? legal %) v)))
+     (or
+      (and (string? v) (contains? legal v))
+      (and (array? v) (every? #(contains? legal %) v)))
       (throw (ex-info "String values of 'type' MUST be one of the six primitive types or 'integer'" {:value v})))))
 
 (defmethod validate-keyword "enum" [kw v options]
@@ -187,7 +187,7 @@
     (throw (ex-info "The value of 'patternProperties' MUST be an object" {:value v})))
   (doseq [[subkw subschema] v]
     (when-not (regex? subkw)
-      (throw (ex-info "Each property name of a 'patternProperties' object SHOULD be a valid regular expression")))
+      (throw (ex-info "Each property name of a 'patternProperties' object SHOULD be a valid regular expression" {})))
     (try
       (validate subschema options)
       (catch ExceptionInfo cause
@@ -203,8 +203,7 @@
 
 (defmethod validate-keyword "dependencies" [kw v options]
   (when-not (object? v)
-    (throw (ex-info "The value of 'dependencies' MUST be an object" {}))
-    )
+    (throw (ex-info "The value of 'dependencies' MUST be an object" {})))
   (doseq [v (vals v)]
     (when-not (or (array? v) (schema? v))
       (throw (ex-info "Dependency values MUST be an array or a JSON Schema" {:value v})))
@@ -320,9 +319,9 @@
    (let [schema (with-base-uri-meta schema)
          index (into {} (index-by-uri schema))]
      (cond->
-         schema
-         (and (instance? clojure.lang.IMeta schema) index)
-         (with-meta (-> schema meta (assoc :uri->schema index)))))))
+      schema
+       (and  #?(:clj (instance? clojure.lang.IMeta schema) :cljs (satisfies? IMeta schema)) index)
+       (with-meta (-> schema meta (assoc :uri->schema index)))))))
 
 ;; TODO: Try against all schemas in test-suite
 
@@ -346,20 +345,20 @@
 
 (comment
   (let [schema
-        {"$id" "http://localhost:1234/tree",
-         "description" "tree of nodes",
-         "type" "object",
+        {"$id" "http://localhost:1234/tree"
+         "description" "tree of nodes"
+         "type" "object"
          "properties"
-         {"meta" {"type" "string"},
-          "nodes" {"type" "array", "items" {"$ref" "node"}}},
-         "required" ["meta" "nodes"],
+         {"meta" {"type" "string"}
+          "nodes" {"type" "array", "items" {"$ref" "node"}}}
+         "required" ["meta" "nodes"]
          "definitions"
          {"node"
-          {"$id" "http://localhost:1234/node",
-           "description" "node",
-           "type" "object",
+          {"$id" "http://localhost:1234/node"
+           "description" "node"
+           "type" "object"
            "properties"
-           {"value" {"type" "number"}, "subtree" {"$ref" "tree"}},
+           {"value" {"type" "number"}, "subtree" {"$ref" "tree"}}
            "required" ["value"]}}}
         schema (with-base-uri-meta schema)
         index (into {} (index-by-uri schema))]
