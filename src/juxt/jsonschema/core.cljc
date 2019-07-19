@@ -20,7 +20,11 @@
 (defn schema? [x]
   (or (object? x) (boolean? x)))
 
+
 (defn regex? [x]
-  ;; TODO: Check is x is a valid regular expression "according to the
-  ;; ECMA 262 regular expression dialect"
-  (string? x))
+  (let [valid? (atom true)]
+    (try
+      #?(:clj (java.util.regex.Pattern/compile x) :cljs (new js/RegExp. x))
+      (catch #?(:clj Exception :cljs js/Error) e
+        (reset! valid? false)))
+    @valid?))
