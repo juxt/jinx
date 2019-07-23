@@ -1,6 +1,5 @@
 (ns juxt.jsonschema.core
-  (:refer-clojure :exclude [number? integer?])
-  (:require [juxt.jsonschema.regex :as regex]))
+  (:refer-clojure :exclude [number? integer? array? object?]))
 
 (defn number? [x]
   (clojure.core/number? x))

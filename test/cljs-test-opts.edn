@@ -1,4 +1,4 @@
-{:optimizations :advanced
+{:optimizations :none
  :cache-analysis true
  :pseudo-names true
  :infer-externs false
