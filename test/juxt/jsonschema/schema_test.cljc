@@ -1,10 +1,14 @@
 (ns juxt.jsonschema.schema-test
   (:require
-   [clojure.test :refer [deftest is are testing]]
-   [juxt.jsonschema.schema :as schema])
-  (:import
-   (clojure.lang ExceptionInfo)))
-
+   [juxt.jsonschema.schema :as schema]
+   #?(:clj
+      [clojure.test :refer [deftest is are testing]]
+      :cljs
+      [cljs.test :refer-macros [deftest is testing run-tests]]
+      [cljs.core :refer [ExceptionInfo]]))
+  #?(:clj
+     (:import
+      (clojure.lang ExceptionInfo))))
 
 (deftest type-test
   (testing "bad type"

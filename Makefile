@@ -3,13 +3,14 @@
 STYLESDIR = ../asciidoctor-stylesheet-factory/stylesheets
 STYLESHEET = juxt.css
 
-.PHONY:	watch default deploy test 
+.PHONY:	watch default deploy test
 
 official-test:
 	clj -Atest -i :official
 
 test-clj:
 	clojure -Atest -e deprecated
+
 test-cljs:
 	rm -rf cljs-test-runner-out && mkdir -p cljs-test-runner-out/gen && clojure -Sverbose -Atest-cljs
 
@@ -25,7 +26,7 @@ pom:
 dev-pom:
 	rm pom.xml && clojure -R:dev:dev-rebel:dev-nrepl:test-cljs -C:dev:dev-rebel:dev-nrepl:test-cljs -Spom
 
-deploy:			
+deploy:
 	pom
 	mvn deploy
 
