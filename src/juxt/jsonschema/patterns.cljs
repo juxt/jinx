@@ -38,6 +38,15 @@
 (def relative-json-pointer
   #"(?:0|[1-9][0-9]*)(?:#|(?:/(?:([^/~])|(~[01]))*)*)$")
 
+(def iso-date-time
+  #"(?i)^\d\d\d\d-[0-1]\d-[0-3]\d[t\s](?:[0-2]\d:[0-5]\d:[0-5]\d|23:59:60)(?:\.\d+)?(?:z|[+-]\d\d:\d\d)$")
+
+(def iso-local-date
+  #"^(\d\d\d\d)-(\d\d)-(\d\d)$")
+
+(def iso-time
+   #"(?i)^(\d\d):(\d\d):(\d\d)(\.\d+)?(z|[+-]\d\d:\d\d)?$")
+
 (defn parse
        "Parse a test string"
        [te instance]

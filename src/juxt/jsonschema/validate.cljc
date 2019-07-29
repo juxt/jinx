@@ -1,19 +1,45 @@
 ;; Copyright © 2019, JUXT LTD.
-
 (ns juxt.jsonschema.validate
-  (:refer-clojure :exclude [number? integer?])
+  (:refer-clojure :exclude [number? integer? array? object?])
   (:require
-   [cheshire.core :as cheshire]
-   [clojure.set :as set]
-   [clojure.string :as str]
-   [clojure.java.io :as io] ;; TODO: Support cljs
-   [clojure.test :refer [deftest is are]]
-   [juxt.jsonschema.jsonpointer :as jsonpointer]
-   [juxt.jsonschema.core :refer [number? integer? array? object? schema?]]
    [juxt.jsonschema.schema :as schema]
    [juxt.jsonschema.resolve :as resolv]
    [juxt.jsonschema.regex :as regex]
-   [lambdaisland.uri :as uri]))
+   [juxt.jsonschema.jsonpointer :as jsonpointer]
+   [clojure.string :as str]
+   [clojure.set :as set]
+   [lambdaisland.uri :as uri]
+   #?@(:clj [[cheshire.core :as cheshire]]
+      :cljs [[goog.crypt.base64 :as b64]
+             [juxt.jsonschema.patterns :as patterns]])))
+
+
+
+(defn read-json-string [json-str]
+  #?(:clj (cheshire/parse-string json-str)
+     :cljs (js/JSON.parse json-str)))
+
+(defn char-code-at [str pos]
+  #?(:clj (.charAt str pos)
+     :cljs (.charCodeAt str pos)))
+
+(defn char-seq
+  "Return a seq of the characters in a string, making sure not to split up
+  UCS-2 (or is it UTF-16?) surrogate pairs. Because JavaScript. And Java."
+  ([str]
+   (char-seq str 0))
+  ([str offset]
+   (when (<= offset (count str))
+     (let [code (char-code-at str offset)
+           width (if (<= 0xD800 (int code) 0xDBFF) 2 1)] ; detect "high surrogate"
+       (cons (subs str offset (+ offset width))
+             (char-seq str (+ offset width)))))))
+
+(defn float-rem [i m]
+  (let [prec (min (count (second (clojure.string/split (str i) ".")))
+                  (count (second (clojure.string/split (str m) "."))))]
+    (rem (* i (reduce * (repeat  prec 10)))
+         (* m (reduce * (repeat prec 10))))))
 
 ;; "Since many subschemas can be applicable to any single location,
 ;; annotation keywords need to specify any unusual handling of
@@ -54,6 +80,15 @@
 
 (declare validate*)
 
+(defn array? [x]
+  (sequential? x))
+
+(defn object? [x]
+  (map? x))
+
+(defn schema? [x]
+  (or (object? x) (boolean? x)))
+
 ;; All references here relate to
 ;; draft-handrews-json-schema-validation-01.txt unless otherwise
 ;; stated.
@@ -85,6 +120,17 @@
   ;; return nil.
   nil)
 
+;; TODO: Actually we need to use find or contains, because we're also
+;; interested in nils
+(defn some-some?
+  "We need a version of some that treats false as a value"
+  [pred coll]
+  (when-let [s (seq coll)]
+    (if-some [i (pred (first s))] i (recur pred (next s)))))
+
+(defn peek-through [ctx kw]
+  (some-some? kw (:acc ctx)))
+
 ;; We test against the instance first. We try to solve (via defaults)
 ;; and build up the instantiation, and possibly explain our actions
 ;; via the journal. If we can't solve, we throw errors. Errors are
@@ -113,6 +159,15 @@
 ;; TODO: These must check against JavaScript primitive types,
 ;; not Clojure/Java ones
 
+(defn number? [x]
+  (clojure.core/number? x))
+
+(defn integer? [x]
+  (or
+   (clojure.core/integer? x)
+   (when (number? x)
+     (zero? (mod x 1)))))
+
 (def type-preds
   {"null" nil?
    "boolean" boolean?
@@ -131,19 +186,17 @@
         ;; TODO: We have an error, but we should first try to coerce -
         ;; e.g. string->number, number->string
         {:error
-         {:message (format "Instance of %s is not of type %s"
-                           (pr-str instance)
-                           (pr-str type))
+         {:message (str "Instance of " (pr-str instance) "is not of type " (pr-str type))
           :instance instance
           :type type}})
 
       ;; Nil pred
-      (throw (IllegalStateException. "Invalid schema detected")))
-
-    (array? type)
-    (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
+      #?(:clj (throw (IllegalStateException. "Invalid schema detected"))
+         :cljs (throw (js/Error. "Invalid schema detected"))))
+      (array? type)
+      (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
       ;; TODO: Find out _which_ type it matches, and instantiate _that_
-      {:error {:message (format "Value must be of type %s" (str/join " or " (pr-str type)))}})))
+        {:error {:message (str "Value must be of type " (str/join " or " (pr-str type)))}})))
 
 ;; TODO: Possibly replace :errors with :invalid? such that :invalid?
 ;; is not a boolean but contains the errors.
@@ -154,17 +207,17 @@
 
 (defmethod process-keyword "enum" [k enum instance annotations ctx]
   (when-not (contains? (set enum) instance)
-    {:error {:message (format "Value %s must be in enum %s" instance enum)}}))
+    {:error {:message (str "Value " instance " must be in enum " enum)}}))
 
 (defmethod process-keyword "const" [k const instance annotations ctx]
   (when-not (= const instance)
-    {:error {:message (format "Value %s must be equal to const %s" instance const)}}))
+    {:error {:message (str "Value " instance " must be equal to const "  const)}}))
 
 (defmethod process-keyword "multipleOf" [k multiple-of instance annotations ctx]
   (when (number? instance)
-    (when-not
-        #?(:clj (= 0 (.compareTo (.remainder (bigdec instance) (bigdec multiple-of)) BigDecimal/ZERO))
-           :cljs [{:message "Not yet supported"}])
+    (when-not  (= 0
+                #?(:clj (.compareTo (.remainder (bigdec instance) (bigdec multiple-of)) BigDecimal/ZERO)
+                   :cljs (if (or (float? instance) (float? multiple-of)) (float-rem instance multiple-of) (rem instance multiple-of))))
       {:error {:message "Failed multipleOf check"}})))
 
 (defmethod process-keyword "maximum" [k maximum instance annotations ctx]
@@ -190,21 +243,23 @@
 (defmethod process-keyword "maxLength" [k max-length instance annotations ctx]
   (when (string? instance)
     ;; See https://github.com/networknt/json-schema-validator/issues/4
-    (when (> (.codePointCount instance 0 (.length instance)) max-length)
+    (when (> #?(:clj (.codePointCount instance 0 (.length instance))
+                :cljs (count (char-seq instance)))
+                max-length)
       {:error {:message "String is too long"}})))
 
 (defmethod process-keyword "minLength" [k min-length instance annotations ctx]
   (when (string? instance)
     (when (<
            #?(:clj (.codePointCount instance 0 (.length instance))
-              :cljs (count instance))
+              :cljs (count (char-seq instance)))
            min-length)
       {:error {:message "String is too short"}})))
 
 (defmethod process-keyword "pattern" [_ pattern instance annotations ctx]
   (when (string? instance)
     (when-not (re-seq (re-pattern pattern) instance)
-      {:error {:message (format "String does not match pattern %s" pattern)}})))
+      {:error {:message (str "String does not match pattern " pattern)}})))
 
 ;; TODO: Show paths in error messages
 ;; TODO: Improve error messages, possibly copying Ajv or org.everit json-schema
@@ -462,8 +517,7 @@
                    :causes (:errors result)}})))))
 
 ;; TODO: Rather than get, use a macro to retrieve either strings and
-;; keywords, supporting both. But BE CAREFUL with :default as we'll
-;; need to repoint the defmulti's :default in that case.
+;; keywords, supporting both
 
 (defmulti check-format (fn [fmt instance ctx] fmt))
 
@@ -473,31 +527,33 @@
 
 (defmethod check-format "date-time" [fmt instance ctx]
   (when (string? instance)
-    (try
-      (.parse java.time.format.DateTimeFormatter/ISO_DATE_TIME instance)
-      nil
-      (catch Exception e
-        {:format fmt
-         :error {:message "Doesn't match date-time format"}}))))
+    (try #?(:clj (do (.parse java.time.format.DateTimeFormatter/ISO_DATE_TIME instance)
+                     nil)
+            :cljs (when-not (re-find patterns/iso-date-time instance)
+                    (throw (js/Error. "Doesn't match date-time format"))))
+         (catch #?(:clj Exception :cljs js/Error) e
+           {:format fmt
+              :error {:message "Doesn't match date-time format"}}))))
 
 (defmethod check-format "date" [fmt instance ctx]
   (when (string? instance)
-    (try
-      (.parse java.time.format.DateTimeFormatter/ISO_LOCAL_DATE instance)
-      nil
-      (catch Exception e
-        {:format fmt
-         :error {:message "Doesn't match date format"}}
-        ))))
+    (try #?(:clj (do (.parse java.time.format.DateTimeFormatter/ISO_LOCAL_DATE instance)
+                     nil)
+            :cljs (when-not (re-matches  patterns/iso-local-date instance)
+                    (throw (js/Error. "Doesn't match date format"))))
+         (catch #?(:clj Exception :cljs js/Error) e
+           {:format fmt
+            :error {:message "Doesn't match date format"}}))))
 
 (defmethod check-format "time" [fmt instance ctx]
   (when (string? instance)
-    (try
-      (.parse java.time.format.DateTimeFormatter/ISO_TIME instance)
-      nil
-      (catch Exception e
-        {:format fmt
-         :error {:message "Doesn't match time format"}}))))
+    (try #?(:clj (do (.parse java.time.format.DateTimeFormatter/ISO_TIME instance)
+                     nil)
+            :cljs (when-not (re-matches patterns/iso-time instance)
+                    (throw (js/Error. "Doesn't match time format"))))
+         (catch #?(:clj Exception :cljs js/Error) e
+           {:format fmt
+            :error {:message "Doesn't match time format"}}))))
 
 (defmethod check-format "email" [fmt instance ctx]
   (when (string? instance)
@@ -572,7 +628,7 @@
 (defmethod check-format "uri-template" [fmt instance ctx]
   (when (string? instance)
     ;; TODO: Improve this regex: RFC6570
-    (when-not (re-matches #".*" instance)
+    (when-not (re-matches regex/URI instance)
       {:format fmt
        :error {:message "Doesn't match uri-template format"}})))
 
@@ -593,15 +649,15 @@
   (when (string? instance)
     (cond
       ;; (This might be cheating just to get past the test suite)
-      (.contains instance "\\Z")
+      (re-find #"\\Z" instance)
       {:format fmt
        :error {:message "Must not contain \\Z anchor from .NET"}}
-
       :else
       (try
         (re-pattern instance)
         nil
-        (catch Exception e
+        (catch #?(:clj Exception
+                  :cljs js/Error) e
           {:format fmt
            :error {:message "Illegal regex"}})))))
 
@@ -615,7 +671,8 @@
 (defn decode-content [content-encoding instance]
   ;; TODO: Open for extension with a multimethod
   (case content-encoding
-    "base64" (String. (.decode (java.util.Base64/getDecoder) instance))
+    "base64" #?(:clj (String. (.decode (java.util.Base64/getDecoder) instance))
+                :cljs (b64/decodeString instance false))
     nil instance))
 
 (defmethod process-keyword "contentEncoding" [k content-encoding instance annotations ctx]
@@ -627,8 +684,10 @@
   ;; validation for these keywords."
   (when (string? instance)
     (try
-      {:content (decode-content content-encoding instance)}
-      (catch Exception e
+      {:instant (decode-content content-encoding instance)}
+      nil
+      (catch #?(:clj Exception
+                :cljs js/Error) e
         {:error {:message "Not base64"}}))))
 
 (defmethod process-keyword "contentMediaType" [k content-media-type instance annotations {:keys [schema] :as ctx}]
@@ -639,29 +698,28 @@
   ;; choose to do so, they SHOULD offer an option to disable
   ;; validation for these keywords."
   (when (string? instance)
-    (if-let [content
-             (try
-               ;; TODO: Why do this twice?
-               ;; We should be able to access this content
-               (decode-content (get schema "contentEncoding") instance)
-               (catch Exception e nil))]
+    (if-let [content (try
+                       (decode-content (get schema "contentEncoding") instance)
+                       (catch #?(:clj Exception
+                                 :cljs js/Error) e nil))]
       ;; TODO: Open for extension with a multimethod
       (case content-media-type
         "application/json"
         (try
-          (cheshire/parse-string content)
-          nil
-          (catch Exception e
+          {:instant (read-json-string content)}
+          (catch #?(:clj Exception
+                    :cljs js/Error) e
             {:error {:message "Instance is not application/json"}})))
       {:error {:message "Unable to decode content"}})))
 
 (defn resolve-ref [ref-object doc ctx]
   (assert ref-object)
 
-  (let [ ;; "The value of the "$ref" property MUST be a URI Reference."
+  (let [;; "The value of the "$ref" property MUST be a URI Reference."
         ;; -- [CORE Section 8.3]
         base-uri (get (meta ref-object) :base-uri)
-        ref (some-> (get ref-object "$ref") java.net.URLDecoder/decode)
+        ref  #?(:clj (some-> (get ref-object "$ref") java.net.URLDecoder/decode)
+                :cljs (some-> (get ref-object "$ref") js/decodeURIComponent))
         uri (str (uri/join (or base-uri (:base-uri ctx)) ref))]
 
     (let [options
