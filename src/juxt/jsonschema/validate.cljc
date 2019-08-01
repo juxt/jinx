@@ -242,6 +242,7 @@
 
 (defmethod process-keyword "maxLength" [k max-length instance annotations ctx]
   (when (string? instance)
+    #?(:cljs (prn (char-seq instance) (count (char-seq instance))))
     ;; See https://github.com/networknt/json-schema-validator/issues/4
     (when (> #?(:clj (.codePointCount instance 0 (.length instance))
                 :cljs (count (char-seq instance)))

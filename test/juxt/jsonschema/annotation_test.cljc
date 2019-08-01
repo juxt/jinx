@@ -2,7 +2,11 @@
   (:require
    [juxt.jsonschema.validate :as v]
    [juxt.jsonschema.schema :refer [schema]]
-   [clojure.test :refer [deftest is are testing]]))
+   #?(:clj
+      [clojure.test :refer [deftest is testing]]
+      :cljs
+      [cljs.test :refer-macros [deftest is testing run-tests]]
+      [cljs.core :refer [ExceptionInfo]])))
 
 (deftest simple-annotation-test
   (is

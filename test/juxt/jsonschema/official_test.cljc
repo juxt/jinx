@@ -40,7 +40,7 @@
      (def fs (cljs.nodejs/require "fs"))
 
      (defn file-exists? [f]
-       (fs.existsSync nf))
+       (fs.existsSync f))
      (defn dir? [f]
        (and
         (file-exists? f)
