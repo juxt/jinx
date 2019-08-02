@@ -29,7 +29,7 @@
   ([str]
    (char-seq str 0))
   ([str offset]
-   (when (<= offset (count str))
+   (when (< offset (count str))
      (let [code (char-code-at str offset)
            width (if (<= 0xD800 (int code) 0xDBFF) 2 1)] ; detect "high surrogate"
        (cons (subs str offset (+ offset width))
@@ -242,7 +242,6 @@
 
 (defmethod process-keyword "maxLength" [k max-length instance annotations ctx]
   (when (string? instance)
-    #?(:cljs (prn (char-seq instance) (count (char-seq instance))))
     ;; See https://github.com/networknt/json-schema-validator/issues/4
     (when (> #?(:clj (.codePointCount instance 0 (.length instance))
                 :cljs (count (char-seq instance)))
