@@ -4,7 +4,7 @@
    #?(:clj
       [clojure.test :refer [deftest is are testing]]
       :cljs
-      [cljs.test :refer-macros [deftest is testing run-tests]]
+      [cljs.test :refer-macros [deftest is testing]]
       [cljs.core :refer [ExceptionInfo]]))
   #?(:clj
      (:import
