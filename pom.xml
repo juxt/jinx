@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>jinx</groupId>
+  <artifactId>jinx</artifactId>
+  <version>0.1.0</version>
+  <name>jinx</name>
+  <description>jinx is not xml-schema (it's json-schema!)</description>
+  <url>https://github.com/juxt/jinx</url>
+  <scm>
+    <url>https://github.com/juxt/jinx</url>
+  </scm>
+  <dependencies>
+    <dependency>
+      <groupId>org.clojure</groupId>
+      <artifactId>clojure</artifactId>
+      <version>1.10.1</version>
+    </dependency>
+    <dependency>
+      <groupId>cheshire</groupId>
+      <artifactId>cheshire</artifactId>
+      <version>5.8.1</version>
+    </dependency>
+    <dependency>
+      <groupId>cljs-node-io</groupId>
+      <artifactId>cljs-node-io</artifactId>
+      <version>1.1.2</version>
+    </dependency>
+    <dependency>
+      <groupId>lambdaisland</groupId>
+      <artifactId>uri</artifactId>
+      <version>1.1.0</version>
+    </dependency>
+  </dependencies>
+  <build>
+    <sourceDirectory>src</sourceDirectory>
+  </build>
+  <distributionManagement>
+    <repository>
+      <id>clojars</id>
+      <name>Clojars repository</name>
+      <url>https://clojars.org/repo</url>
+    </repository>
+  </distributionManagement>
+  <repositories>
+    <repository>
+      <id>clojars</id>
+      <url>https://repo.clojars.org/</url>
+    </repository>
+  </repositories>
+</project>
