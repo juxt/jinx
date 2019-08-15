@@ -4,6 +4,13 @@ jinx is a recursive acronym: jinx is not xml-schema
 
 jinx is json-schema!
 
+== Build status
+
+image:https://circleci.com/gh/juxt/jinx.svg?style=svg["CircleCI", link="https://circleci.com/gh/juxt/jinx"]
+
+
+== Introduction
+
 Almost all Clojure implementations of https://json-schema.org/[json
 schema validators] wrap Java libraries. This is generally a good idea.
 
