@@ -1,4 +1,4 @@
-(ns juxt.jinx.patterns
+(ns juxt.jinx-alpha.patterns
   (:require
    [clojure.set :as set]
    [clojure.string :as str]))

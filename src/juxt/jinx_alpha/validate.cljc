@@ -1,17 +1,17 @@
 ;; Copyright © 2019, JUXT LTD.
-(ns juxt.jinx.validate
+(ns juxt.jinx-alpha.validate
   (:refer-clojure :exclude [number? integer? array? object?])
   (:require
-   [juxt.jinx.schema :as schema]
-   [juxt.jinx.resolve :as resolv]
-   [juxt.jinx.regex :as regex]
-   [juxt.jinx.jsonpointer :as jsonpointer]
+   [juxt.jinx-alpha.schema :as schema]
+   [juxt.jinx-alpha.resolve :as resolv]
+   [juxt.jinx-alpha.regex :as regex]
+   [juxt.jinx-alpha.jsonpointer :as jsonpointer]
    [clojure.string :as str]
    [clojure.set :as set]
    [lambdaisland.uri :as uri]
    #?@(:clj [[cheshire.core :as cheshire]]
       :cljs [[goog.crypt.base64 :as b64]
-             [juxt.jinx.patterns :as patterns]])))
+             [juxt.jinx-alpha.patterns :as patterns]])))
 
 
 

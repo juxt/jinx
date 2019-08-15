@@ -1,4 +1,4 @@
-(ns juxt.jinx.core
+(ns juxt.jinx-alpha.core
   (:refer-clojure :exclude [number? integer? array? object?]))
 
 (defn number? [x]

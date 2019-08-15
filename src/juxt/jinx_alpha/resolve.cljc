@@ -1,16 +1,16 @@
 ;; Copyright © 2019, JUXT LTD.
 
-(ns juxt.jinx.resolve
+(ns juxt.jinx-alpha.resolve
   (:require
-   [juxt.jinx.schema :as schema]
+   [juxt.jinx-alpha.schema :as schema]
    [clojure.string :as str]
-   [juxt.jinx.jsonpointer :as jsonpointer]
+   [juxt.jinx-alpha.jsonpointer :as jsonpointer]
    #?@(:clj [[cheshire.core :as cheshire]
              [clojure.java.io :as io]]
        :cljs [[cljs-node-io.file :refer [File]]
               [cljs-node-io.core :as io :refer [slurp]]]))
   #?(:cljs (:import goog.Uri))
-  #?(:cljs (:require-macros [juxt.jinx.resolve :refer [slurp-resource]])))
+  #?(:cljs (:require-macros [juxt.jinx-alpha.resolve :refer [slurp-resource]])))
 
 #?(:clj
    (defmacro slurp-resource [resource]

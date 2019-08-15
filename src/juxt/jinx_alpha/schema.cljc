@@ -1,9 +1,9 @@
 ;; Copyright © 2019, JUXT LTD.
 
-(ns juxt.jinx.schema
+(ns juxt.jinx-alpha.schema
   (:refer-clojure :exclude [number? integer?])
   (:require
-   [juxt.jinx.core :refer [number? integer? array? object? schema? regex?]]
+   [juxt.jinx-alpha.core :refer [number? integer? array? object? schema? regex?]]
    [lambdaisland.uri :refer [join]]
    #?(:cljs [cljs.core :refer [ExceptionInfo]]))
   #?(:clj  (:import (clojure.lang ExceptionInfo))))

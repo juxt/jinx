@@ -1,7 +1,7 @@
 (ns juxt.jinx.demo
   (:require
-   [juxt.jinx.schema :refer [schema]]
-   [juxt.jinx.validate :refer [validate]]))
+   [juxt.jinx-alpha.schema :refer [schema]]
+   [juxt.jinx-alpha.validate :refer [validate]]))
 
 
 (comment

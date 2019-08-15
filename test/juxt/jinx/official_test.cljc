@@ -5,19 +5,19 @@
                       [cheshire.core :as json]
                       [clojure.test :refer :all]
                       [clojure.test :as test]
-                      [juxt.jinx.validate :refer [validate]]
-                      [juxt.jinx.schema :refer [schema]]
-                      [juxt.jinx.resolve :as resolv]
-                      [juxt.jinx.schema :as schema])]
+                      [juxt.jinx-alpha.validate :refer [validate]]
+                      [juxt.jinx-alpha.schema :refer [schema]]
+                      [juxt.jinx-alpha.resolve :as resolv]
+                      [juxt.jinx-alpha.schema :as schema])]
       :cljs [(:require [cljs-node-io.core :as io :refer [slurp]]
                        [cljs-node-io.fs :as fs]
                        [cljs-node-io.file :refer [File]]
                        [cljs.test :refer-macros [deftest is testing run-tests]]
-                       [juxt.jinx.validate :refer [validate]]
-                       [juxt.jinx.schema :refer [schema]]
-                       [juxt.jinx.resolve :as resolv]
+                       [juxt.jinx-alpha.validate :refer [validate]]
+                       [juxt.jinx-alpha.schema :refer [schema]]
+                       [juxt.jinx-alpha.resolve :as resolv]
                        [cljs.nodejs :as nodejs]
-                       [juxt.jinx.schema :as schema])]))
+                       [juxt.jinx-alpha.schema :as schema])]))
 
 (defn- env [s]
   #?(:clj (System/getenv (str s)))
