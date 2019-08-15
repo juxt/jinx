@@ -1,3 +1,5 @@
+.DEFAULT_GOAL := test
+
 .PHONY: test watch
 
 STYLESDIR = ../asciidoctor-stylesheet-factory/stylesheets
