@@ -73,7 +73,7 @@ file:/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/
 * TODO Improved error messages and locators
 * TODO Download Ajv to compare
 * TODO Compare with luposlip/json-schema/, particularly errors
-* TODO Download release zip of JSON-Schema-Test-Suite or try with tools.deps tech to download git repo
+* DONE Download release zip of JSON-Schema-Test-Suite or try with tools.deps tech to download git repo
 * TODO [#C] Validation of schema regex value must conform to regex
 ** TODO Implement regex grammar to detect bad regex patterns https://www.ecma-international.org/ecma-262/9.0/index.html#sec-literals-regular-expression-literals
 *** TODO This needs to be implemented for both
