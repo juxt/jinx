@@ -1,2 +1,4 @@
 /.nrepl-port
 /.cpcache
+/cljs-test-runner-out
+/target
