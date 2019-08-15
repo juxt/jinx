@@ -83,6 +83,15 @@ A value may also be a function (called with the URI or, in the case of a regex, 
                                                  :path (second match)})}
 ----
 
+== Developing
+
+When you clone this repository, use the `--recursive` option to ensure
+that the official json schema repo is also cloned (as a submodule).
+
+----
+git clone --recursive https://github.com/juxt/jinx
+----
+
 == Alternative implementations
 
 * https://github.com/niquola/json-schema.clj
