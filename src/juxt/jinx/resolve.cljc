@@ -14,7 +14,7 @@
 
 #?(:clj
    (defmacro slurp-resource [resource]
-     (clojure.core/slurp (str "resources/" resource))))
+     (clojure.core/slurp (io/resource resource))))
 
 (defn read-json-string [json-str]
   #?(:clj (cheshire/parse-string json-str)
