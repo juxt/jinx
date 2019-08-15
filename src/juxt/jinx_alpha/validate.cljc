@@ -1,4 +1,5 @@
 ;; Copyright © 2019, JUXT LTD.
+
 (ns juxt.jinx-alpha.validate
   (:refer-clojure :exclude [number? integer? array? object?])
   (:require
@@ -12,8 +13,6 @@
    #?@(:clj [[cheshire.core :as cheshire]]
       :cljs [[goog.crypt.base64 :as b64]
              [juxt.jinx-alpha.patterns :as patterns]])))
-
-
 
 (defn read-json-string [json-str]
   #?(:clj (cheshire/parse-string json-str)

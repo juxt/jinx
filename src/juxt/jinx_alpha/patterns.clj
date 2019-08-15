@@ -1,3 +1,5 @@
+;; Copyright © 2019, JUXT LTD.
+
 (ns juxt.jinx-alpha.patterns
   (:require
    [clojure.set :as set]

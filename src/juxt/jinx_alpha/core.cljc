@@ -1,3 +1,5 @@
+;; Copyright © 2019, JUXT LTD.
+
 (ns juxt.jinx-alpha.core
   (:refer-clojure :exclude [number? integer? array? object?]))
 

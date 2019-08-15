@@ -14,10 +14,9 @@
                        [cljs-node-io.file :refer [File]]
                        [cljs.test :refer-macros [deftest is testing run-tests]]
                        [juxt.jinx-alpha.validate :refer [validate]]
-                       [juxt.jinx-alpha.schema :refer [schema]]
+                       [juxt.jinx-alpha.schema :as schema :refer [schema]]
                        [juxt.jinx-alpha.resolve :as resolv]
-                       [cljs.nodejs :as nodejs]
-                       [juxt.jinx-alpha.schema :as schema])]))
+                       [cljs.nodejs :as nodejs])]))
 
 (defn- env [s]
   #?(:clj (System/getenv (str s)))

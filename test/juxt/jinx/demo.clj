@@ -1,8 +1,9 @@
+;; Copyright © 2019, JUXT LTD.
+
 (ns juxt.jinx.demo
   (:require
    [juxt.jinx-alpha.schema :refer [schema]]
    [juxt.jinx-alpha.validate :refer [validate]]))
-
 
 (comment
   (validate

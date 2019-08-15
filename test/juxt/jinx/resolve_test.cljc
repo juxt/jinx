@@ -1,20 +1,22 @@
 ;; Copyright © 2019, JUXT LTD.
 
 (ns juxt.jinx.resolve-test
-  #?@(:clj [(:require
-             [juxt.jinx-alpha.resolve :refer [resolve-uri]]
-             [clojure.string :as str]
-             [cheshire.core :as cheshire]
-             [clojure.java.io :as io]
-             [lambdaisland.uri :as uri]
-             [clojure.test :refer [deftest is are testing]])]
-      :cljs [(:require
-              [juxt.jinx-alpha.resolve :refer [resolve-uri]]
-              [clojure.string :as str]
-              [cljs-node-io.file :refer [File]]
-              [lambdaisland.uri :as uri]
-              [cljs.test :refer-macros [deftest is are testing run-tests]])
-             (:import goog.Uri)]))
+  #?@(:clj
+      [(:require
+        [juxt.jinx-alpha.resolve :refer [resolve-uri]]
+        [clojure.string :as str]
+        [cheshire.core :as cheshire]
+        [clojure.java.io :as io]
+        [lambdaisland.uri :as uri]
+        [clojure.test :refer [deftest is are testing]])]
+      :cljs
+      [(:require
+        [juxt.jinx-alpha.resolve :refer [resolve-uri]]
+        [clojure.string :as str]
+        [cljs-node-io.file :refer [File]]
+        [lambdaisland.uri :as uri]
+        [cljs.test :refer-macros [deftest is are testing run-tests]])
+       (:import goog.Uri)]))
 
 (comment
   :resolvers [[:juxt.jinx-alpha.resolve/default-resolver {"http://example.com/foo" (io/resource "schemas/json-schema.org/draft-07/schema")}]

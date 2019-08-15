@@ -1,3 +1,5 @@
+;; Copyright © 2019, JUXT LTD.
+
 (ns juxt.jinx.schema-test
   (:require
    [juxt.jinx-alpha.schema :as schema]

@@ -1,3 +1,5 @@
+;; Copyright © 2019, JUXT LTD.
+
 (ns juxt.jinx.regex-test
   #?@(:clj [(:require
              [juxt.jinx-alpha.regex :as regex]
