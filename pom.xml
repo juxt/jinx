@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>jinx</groupId>
   <artifactId>jinx</artifactId>
-  <version>0.1.4</version>
+  <version>0.1.5</version>
   <name>jinx</name>
   <description>jinx is not xml-schema (it's json-schema!)</description>
   <url>https://github.com/juxt/jinx</url>
