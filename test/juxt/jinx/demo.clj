@@ -2,15 +2,14 @@
 
 (ns juxt.jinx.demo
   (:require
-   [juxt.jinx-alpha.schema :refer [schema]]
-   [juxt.jinx-alpha.validate :refer [validate]]))
+   [juxt.jinx-alpha :as jinx]))
 
 (comment
-  (validate
+  (jinx/validate
    {"firstName" "John"
     "lastName" "Doe"
     "age" 21}
-   (schema
+   (jinx/schema
     {"$id" "https://example.com/person.schema.json"
      "$schema" "http://json-schema.org/draft-07/schema#"
      "title" "Person"
