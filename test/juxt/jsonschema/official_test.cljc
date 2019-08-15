@@ -27,8 +27,8 @@
    (def Throwable js/Error))
 
 (def TESTS-ROOT
-  #?(:clj (io/file (System/getenv "JUXT_REPOS") "JSON-Schema-Test-Suite")
-     :cljs (str (aget js/process.env "JUXT_REPOS") "JSON-Schema-Test-Suite")))
+  #?(:clj (io/file "official-test-suite")
+     :cljs (str "official-test-suite")))
 
 (def TESTS-DIR
   #?(:clj (io/file TESTS-ROOT "tests/draft7")
