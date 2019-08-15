@@ -4,7 +4,7 @@ jinx is a recursive acronym: jinx is not xml-schema
 
 jinx is json-schema!
 
-image:https://img.shields.io/clojars/v/jinx.svg["Clojars",link="https:clojars.org/jinx"]
+image:https://img.shields.io/clojars/v/jinx.svg["Clojars",link="https://clojars.org/jinx"]
 image:https://circleci.com/gh/juxt/jinx.svg?style=shield["CircleCI", link="https://circleci.com/gh/juxt/jinx"]
 
 == Introduction
