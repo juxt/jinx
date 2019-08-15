@@ -1,8 +1,8 @@
-(ns juxt.jsonschema.regex
+(ns juxt.jinx.regex
   (:require
    [clojure.string :as str]
    [clojure.set :as set]
-   [juxt.jsonschema.patterns :as patterns]))
+   [juxt.jinx.patterns :as patterns]))
 
 (def addr-spec patterns/addr-spec)
 (comment
@@ -48,5 +48,3 @@
 
 (def json-pointer patterns/json-pointer)
 (def relative-json-pointer patterns/relative-json-pointer)
-
-

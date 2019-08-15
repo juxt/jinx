@@ -1,4 +1,4 @@
-(ns juxt.jsonschema.patterns
+(ns juxt.jinx.patterns
   (:require
    [clojure.set :as set]
    [clojure.string :as str]))

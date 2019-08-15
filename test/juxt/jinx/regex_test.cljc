@@ -1,11 +1,11 @@
-(ns juxt.jsonschema.regex-test
+(ns juxt.jinx.regex-test
   #?@(:clj [(:require
-             [juxt.jsonschema.regex :as regex]
-             [juxt.jsonschema.patterns :as patterns]
+             [juxt.jinx.regex :as regex]
+             [juxt.jinx.patterns :as patterns]
              [clojure.test :refer [deftest is are testing]])]
       :cljs [(:require
-              [juxt.jsonschema.regex :as regex]
-              [juxt.jsonschema.patterns :as patterns]
+              [juxt.jinx.regex :as regex]
+              [juxt.jinx.patterns :as patterns]
               [cljs.test :refer-macros [deftest is are testing run-tests ]])]))
 
 #?(:clj

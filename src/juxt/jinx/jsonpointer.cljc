@@ -1,6 +1,6 @@
 ;; Copyright © 2019, JUXT LTD.
 
-(ns juxt.jsonschema.jsonpointer
+(ns juxt.jinx.jsonpointer
   (:require
    [clojure.string :as str]))
 

@@ -1,4 +1,4 @@
-(ns juxt.jsonschema.patterns)
+(ns juxt.jinx.patterns)
 
 (def addr-spec
   #"(?i)((?<localpart>^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+)@(?<domain>[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*))")

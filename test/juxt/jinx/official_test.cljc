@@ -1,23 +1,23 @@
 ;; Copyright © 2019, JUXT LTD.
 
-(ns juxt.jsonschema.official-test
+(ns juxt.jinx.official-test
   #?@(:clj [(:require [clojure.java.io :as io]
                       [cheshire.core :as json]
                       [clojure.test :refer :all]
                       [clojure.test :as test]
-                      [juxt.jsonschema.validate :refer [validate]]
-                      [juxt.jsonschema.schema :refer [schema]]
-                      [juxt.jsonschema.resolve :as resolv]
-                      [juxt.jsonschema.schema :as schema])]
+                      [juxt.jinx.validate :refer [validate]]
+                      [juxt.jinx.schema :refer [schema]]
+                      [juxt.jinx.resolve :as resolv]
+                      [juxt.jinx.schema :as schema])]
       :cljs [(:require [cljs-node-io.core :as io :refer [slurp]]
                        [cljs-node-io.fs :as fs]
                        [cljs-node-io.file :refer [File]]
                        [cljs.test :refer-macros [deftest is testing run-tests]]
-                       [juxt.jsonschema.validate :refer [validate]]
-                       [juxt.jsonschema.schema :refer [schema]]
-                       [juxt.jsonschema.resolve :as resolv]
+                       [juxt.jinx.validate :refer [validate]]
+                       [juxt.jinx.schema :refer [schema]]
+                       [juxt.jinx.resolve :as resolv]
                        [cljs.nodejs :as nodejs]
-                       [juxt.jsonschema.schema :as schema])]))
+                       [juxt.jinx.schema :as schema])]))
 
 (defn- env [s]
   #?(:clj (System/getenv (str s)))

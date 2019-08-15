@@ -1,6 +1,6 @@
-(ns juxt.jsonschema.schema-test
+(ns juxt.jinx.schema-test
   (:require
-   [juxt.jsonschema.schema :as schema]
+   [juxt.jinx.schema :as schema]
    #?(:clj
       [clojure.test :refer [deftest is are testing]]
       :cljs

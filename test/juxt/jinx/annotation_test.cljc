@@ -1,7 +1,7 @@
-(ns juxt.jsonschema.annotation-test
+(ns juxt.jinx.annotation-test
   (:require
-   [juxt.jsonschema.validate :as v]
-   [juxt.jsonschema.schema :refer [schema]]
+   [juxt.jinx.validate :as v]
+   [juxt.jinx.schema :refer [schema]]
    #?(:clj
       [clojure.test :refer [deftest is testing]]
       :cljs

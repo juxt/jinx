@@ -58,11 +58,11 @@ pass. Failing tests include support for uri-template and idn-email.
 
 == Schemas
 
-A schema is a Clojure map (or boolean) that should be augmented with metadata by calling `juxt.jsonschema.schema/schema` on the schema data:
+A schema is a Clojure map (or boolean) that should be augmented with metadata by calling `juxt.jinx.schema/schema` on the schema data:
 
 [source,clojure]
 ----
-(juxt.jsonschema.schema/schema {"type" "object"})
+(juxt.jinx.schema/schema {"type" "object"})
 ----
 
 == Resolvers
@@ -71,11 +71,11 @@ Validation can take an optional options map.
 
 The `:resolvers` entry should be a collection of resolvers.
 
-* `:juxt.jsonschema.resolve/built-in` is the built-in resolver which will resolve schemas contained in the library, such as the draft7 meta-schema.
+* `:juxt.jinx.resolve/built-in` is the built-in resolver which will resolve schemas contained in the library, such as the draft7 meta-schema.
 
-* `:juxt.jsonschema.resolve/default-resolver` is a resolver which takes an argument of a map of URIs (or regexes) to values.
+* `:juxt.jinx.resolve/default-resolver` is a resolver which takes an argument of a map of URIs (or regexes) to values.
 +
-A value can be a schema (which should be pre-processed with schema metadata by calling `juxt.jsonschema.schema/schema`).
+A value can be a schema (which should be pre-processed with schema metadata by calling `juxt.jinx.schema/schema`).
 +
 A value may also be a function (called with the URI or, in the case of a regex, the result of the regex match):
 +

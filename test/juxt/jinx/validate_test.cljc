@@ -1,9 +1,9 @@
-(ns juxt.jsonschema.validate-test
+(ns juxt.jinx.validate-test
   #?@(:clj [(:require
-             [juxt.jsonschema.validate :as validate]
+             [juxt.jinx.validate :as validate]
              [clojure.test :refer [deftest is are testing]])]
       :cljs [(:require
-              [juxt.jsonschema.validate :as validate]
+              [juxt.jinx.validate :as validate]
               [cljs.test :refer-macros [deftest is are testing run-tests]])]))
 
 (defn run-validate [instance schema]

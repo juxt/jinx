@@ -1,4 +1,4 @@
 ^{:auto-testing true
   :open-url false
   :watch-dirs ["src" "test"]}
-{:main juxt.jsonschema.validate}
+{:main juxt.jinx.validate}
