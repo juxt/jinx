@@ -827,12 +827,16 @@
 
 (defn validate
   "Instance should come first do support the Clojure thread-first
-  macro. Instances are the objects here, schemas are the incidentals."
+  macro. Instances are the objects here, schemas are the
+  incidentals. Options can contain an optional :base-document which
+  will be used when resolving $ref references, otherwise the schema
+  document is used as the base document. Resolvers can be overridden
+  by specifying :resolvers in the options."
   ([instance schema]
    (validate instance schema {:resolvers [::resolv/built-in]}))
 
   ([instance schema options]
    (validate*
     instance schema
-    {:doc schema
-     :options (merge {:resolvers [::resolv/built-in]} options)})))
+    {:doc (or (:base-document options) schema)
+     :options (merge {:resolvers [::resolv/built-in]} (dissoc options :base-document))})))
