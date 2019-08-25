@@ -185,7 +185,7 @@
         ;; TODO: We have an error, but we should first try to coerce -
         ;; e.g. string->number, number->string
         {:error
-         {:message (str "Instance of " (pr-str instance) "is not of type " (pr-str type))
+         {:message (str "Instance of " (pr-str instance) " is not of type " (pr-str type))
           :instance instance
           :type type}})
 
