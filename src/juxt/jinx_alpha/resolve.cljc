@@ -2,9 +2,11 @@
 
 (ns juxt.jinx-alpha.resolve
   (:require
-   [juxt.jinx-alpha.schema :as schema]
    [clojure.string :as str]
+   [clojure.walk :refer [postwalk]]
+   [lambdaisland.uri :as uri]
    [juxt.jinx-alpha.jsonpointer :as jsonpointer]
+   [juxt.jinx-alpha.schema :as schema]
    #?@(:clj [[cheshire.core :as cheshire]
              [clojure.java.io :as io]]
        :cljs [[cljs-node-io.file :refer [File]]
@@ -101,3 +103,37 @@
            docref]
 
           (throw (ex-info (str "Failed to resolve uri: " docref) {:uri docref})))))))
+
+
+(defn resolve-ref [ref-object doc ctx]
+  (assert ref-object)
+
+  (let [;; "The value of the "$ref" property MUST be a URI Reference."
+        ;; -- [CORE Section 8.3]
+        base-uri (get (meta ref-object) :base-uri)
+        ref  #?(:clj (some-> (get ref-object "$ref") java.net.URLDecoder/decode)
+                :cljs (some-> (get ref-object "$ref") js/decodeURIComponent))
+        uri (str (uri/join (or base-uri (:base-uri ctx)) ref))]
+
+    (let [options
+          (if false #_(contains? (:visited-memory ctx) uri)
+              (throw (ex-info "Infinite cycle detected" {:uri uri}))
+              (update ctx :visited-memory (fnil conj #{}) uri))]
+
+      (let [[new-schema doc base-uri] (resolv uri doc (get-in ctx [:options :resolvers]))]
+        [new-schema (cond-> ctx
+                      base-uri (assoc :base-uri base-uri)
+                      doc (assoc :doc doc))]))))
+
+
+(defn expand-document
+  ([doc ctx]
+   (expand-document doc doc ctx))
+  ([doc parent ctx]
+   (postwalk
+    (fn [m]
+      (if (and (map? m) (contains? m "$ref"))
+        (let [[new-doc new-ctx] (resolve-ref m parent ctx)]
+          (expand-document new-doc parent new-ctx))
+        m))
+    doc)))

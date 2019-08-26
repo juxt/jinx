@@ -3,8 +3,9 @@
 (ns juxt.jinx.resolve-test
   #?@(:clj
       [(:require
-        [juxt.jinx-alpha.resolve :refer [resolve-uri]]
+        [juxt.jinx-alpha.resolve :refer [resolve-uri expand-document]]
         [clojure.string :as str]
+        [clojure.edn :as edn]
         [cheshire.core :as cheshire]
         [clojure.java.io :as io]
         [lambdaisland.uri :as uri]
@@ -100,3 +101,17 @@
         (resolve-uri
          [:juxt.jinx-alpha.resolve/default-resolver example-map]
          "http://example.com/schemas/schema1.json"))))))
+
+
+#?(:clj
+   (deftest document-expansion-test
+     (let [expansion
+           (expand-document
+            (edn/read-string (slurp (io/resource "juxt/jinx/petstore.edn")))
+            {})]
+       (is
+        (=
+         "string"
+         (get-in expansion ["paths" "/pets" "get" "responses"
+                            "200" "content" "application/json"
+                            "schema" "items" "properties" "name" "type"]))))))

@@ -9,7 +9,6 @@
    [juxt.jinx-alpha.jsonpointer :as jsonpointer]
    [clojure.string :as str]
    [clojure.set :as set]
-   [lambdaisland.uri :as uri]
    #?@(:clj [[cheshire.core :as cheshire]]
       :cljs [[goog.crypt.base64 :as b64]
              [juxt.jinx-alpha.patterns :as patterns]])))
@@ -711,26 +710,6 @@
             {:error {:message "Instance is not application/json"}})))
       {:error {:message "Unable to decode content"}})))
 
-(defn resolve-ref [ref-object doc ctx]
-  (assert ref-object)
-
-  (let [;; "The value of the "$ref" property MUST be a URI Reference."
-        ;; -- [CORE Section 8.3]
-        base-uri (get (meta ref-object) :base-uri)
-        ref  #?(:clj (some-> (get ref-object "$ref") java.net.URLDecoder/decode)
-                :cljs (some-> (get ref-object "$ref") js/decodeURIComponent))
-        uri (str (uri/join (or base-uri (:base-uri ctx)) ref))]
-
-    (let [options
-          (if false #_(contains? (:visited-memory ctx) uri)
-              (throw (ex-info "Infinite cycle detected" {:uri uri}))
-              (update ctx :visited-memory (fnil conj #{}) uri))]
-
-      (let [[new-schema doc base-uri] (resolv/resolv uri doc (get-in ctx [:options :resolvers]))]
-        [new-schema (cond-> ctx
-                      base-uri (assoc :base-uri base-uri)
-                      doc (assoc :doc doc))]))))
-
 (defn- validate*
   [instance schema {:keys [options] :as ctx}]
 
@@ -744,7 +723,7 @@
 
     (cond
       (contains? schema "$ref")
-      (let [[new-schema new-ctx] (resolve-ref schema (:doc ctx) ctx)
+      (let [[new-schema new-ctx] (resolv/resolve-ref schema (:doc ctx) ctx)
             res (validate* instance new-schema new-ctx)
             causes (:errors res)]
         (cond-> res
