@@ -34,7 +34,7 @@
 
     (symbol? x)
     (cond
-      (#{'string 'integer 'boolean 'number} x)
+      (#{'string 'integer 'boolean 'number 'object} x)
       {"type" (name x)}
       :else (throw (ex-info "Unexpected symbol" {:symbol x})))
 

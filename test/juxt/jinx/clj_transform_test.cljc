@@ -12,6 +12,7 @@
 (deftest clj->jsch-test
   (is (= {"type" "string"} (clj->jsch 'string)))
   (is (= {"type" "integer"} (clj->jsch 'integer)))
+  (is (= {"type" "object"} (clj->jsch 'object)))
   (is (= {"type" "array" "items" {"type" "string"}} (clj->jsch '[string])))
   (is (= {"type" "array" "items" [{"type" "string"}{"type" "integer"}]} (clj->jsch '(string integer))))
   (is (= {"type" "null"} (clj->jsch nil)))
