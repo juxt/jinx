@@ -8,6 +8,7 @@
       [juxt.jinx-alpha.core
        :refer
        [array? integer? number? object? regex? schema?]]
+      [juxt.jinx-alpha.validate :as validate]
       [lambdaisland.uri :refer [join]])
      (:import clojure.lang.ExceptionInfo)]
     :cljs
