@@ -87,7 +87,7 @@
 (defmethod resolve-uri ::function [[_ f] ^String uri]
   (f uri))
 
-(defn resolv [uri doc resolvers]
+(defn- resolv [uri doc resolvers]
   "Return a vector of [schema new-doc & [new-base-uri]]."
   ;; TODO: Return a map rather than vector
   (let [[docref fragment] (str/split uri #"#")]
