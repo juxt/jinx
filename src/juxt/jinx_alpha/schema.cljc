@@ -2,11 +2,21 @@
 
 (ns juxt.jinx-alpha.schema
   (:refer-clojure :exclude [number? integer?])
-  (:require
-   [juxt.jinx-alpha.core :refer [number? integer? array? object? schema? regex?]]
-   [lambdaisland.uri :refer [join]]
-   #?(:cljs [cljs.core :refer [ExceptionInfo]]))
-  #?(:clj  (:import (clojure.lang ExceptionInfo))))
+  #?@
+   (:clj
+    [(:require
+      [juxt.jinx-alpha.core
+       :refer
+       [array? integer? number? object? regex? schema?]]
+      [lambdaisland.uri :refer [join]])
+     (:import clojure.lang.ExceptionInfo)]
+    :cljs
+    [(:require
+      [cljs.core :refer [ExceptionInfo]]
+      [juxt.jinx-alpha.core
+       :refer
+       [array? integer? number? object? regex? schema?]]
+      [lambdaisland.uri :refer [join]])]))
 
 (defn- with-base-uri-meta
   "For each $id in the schema, add metadata to indicate the base-uri."

@@ -1,18 +1,25 @@
 ;; Copyright © 2019, JUXT LTD.
 
 (ns juxt.jinx-alpha.resolve
-  (:require
-   [clojure.string :as str]
-   [clojure.walk :refer [postwalk]]
-   [lambdaisland.uri :as uri]
-   [juxt.jinx-alpha.jsonpointer :as jsonpointer]
-   [juxt.jinx-alpha.schema :as schema]
-   #?@(:clj [[cheshire.core :as cheshire]
-             [clojure.java.io :as io]]
-       :cljs [[cljs-node-io.file :refer [File]]
-              [cljs-node-io.core :as io :refer [slurp]]]))
-  #?(:cljs (:import goog.Uri))
-  #?(:cljs (:require-macros [juxt.jinx-alpha.resolve :refer [slurp-resource]])))
+  #?@
+   (:clj
+    [(:require
+      [cheshire.core :as cheshire]
+      [clojure.java.io :as io]
+      [clojure.string :as str]
+      [clojure.walk :refer [postwalk]]
+      [juxt.jinx-alpha.jsonpointer :as jsonpointer]
+      [lambdaisland.uri :as uri])]
+    :cljs
+    [(:require
+      [cljs-node-io.core :as io :refer [slurp]]
+      [cljs-node-io.file :refer [File]]
+      [clojure.string :as str]
+      [clojure.walk :refer [postwalk]]
+      [juxt.jinx-alpha.jsonpointer :as jsonpointer]
+      [lambdaisland.uri :as uri])
+     (:require-macros [juxt.jinx-alpha.resolve :refer [slurp-resource]])
+     (:import goog.Uri)]))
 
 #?(:clj
    (defmacro slurp-resource [resource]
@@ -31,8 +38,6 @@
     (cond
       (keyword? k) k
       (coll? k) (first k))))
-
-;; Built-in
 
 (def built-in-schemas
   {"http://json-schema.org/draft-07/schema" (slurp-resource "schemas/json-schema.org/draft-07/schema")})

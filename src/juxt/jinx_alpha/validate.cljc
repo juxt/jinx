@@ -2,16 +2,20 @@
 
 (ns juxt.jinx-alpha.validate
   (:refer-clojure :exclude [number? integer? array? object?])
-  (:require
-   [juxt.jinx-alpha.schema :as schema]
-   [juxt.jinx-alpha.resolve :as resolv]
-   [juxt.jinx-alpha.regex :as regex]
-   [juxt.jinx-alpha.jsonpointer :as jsonpointer]
-   [clojure.string :as str]
-   [clojure.set :as set]
-   #?@(:clj [[cheshire.core :as cheshire]]
-      :cljs [[goog.crypt.base64 :as b64]
-             [juxt.jinx-alpha.patterns :as patterns]])))
+  #?@
+   (:clj
+    [(:require
+      [cheshire.core :as cheshire]
+      [clojure.string :as str]
+      [juxt.jinx-alpha.regex :as regex]
+      [juxt.jinx-alpha.resolve :as resolv])]
+    :cljs
+    [(:require
+      [clojure.string :as str]
+      [goog.crypt.base64 :as b64]
+      [juxt.jinx-alpha.patterns :as patterns]
+      [juxt.jinx-alpha.regex :as regex]
+      [juxt.jinx-alpha.resolve :as resolv])]))
 
 (defn read-json-string [json-str]
   #?(:clj (cheshire/parse-string json-str)

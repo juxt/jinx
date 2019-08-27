@@ -2,8 +2,8 @@
 
 (ns juxt.jinx-alpha.regex
   (:require
-   [clojure.string :as str]
    [clojure.set :as set]
+   [clojure.string :as str]
    [juxt.jinx-alpha.patterns :as patterns]))
 
 (def addr-spec patterns/addr-spec)
