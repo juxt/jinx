@@ -52,9 +52,8 @@
                                       ))
                              {} v)
                 v)))
-     {} x)))
+     {} x)
 
-
-
-#_(clj->jsch {:properties {"a" "A"}
-            :required ["a"]})
+    #?@(:clj
+        [(instance? java.util.regex.Pattern x)
+         {"pattern" (str x)}])))

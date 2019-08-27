@@ -25,4 +25,6 @@
           "required" ["a"]}
          (clj->jsch {:properties {"a" ['string]
                                   "b" "20"}
-                     :required ["a"]}))))
+                     :required ["a"]})))
+  #?(:clj
+     (is (= {"pattern" "\\w+"} (clj->jsch #"\w+")))))
