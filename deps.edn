@@ -9,7 +9,8 @@
   {:extra-deps
    {com.bhauman/figwheel-main {:mvn/version "0.2.0"}
     com.bhauman/cljs-test-display {:mvn/version "0.1.1"}
-    org.clojure/clojurescript {:mvn/version "1.10.520"}}
+    org.clojure/clojurescript {:mvn/version "1.10.520"}
+    }
 
    :extra-paths ["dev/src" "test"]
    :jvm-opts ["-Dclojure.spec.compile-asserts=true"]}
@@ -25,9 +26,9 @@
   :dev-nrepl {:jvm-opts ["-Dnrepl.load=true"]
               :extra-paths ["aliases/nrepl"]
               :extra-deps
-              {cider/cider-nrepl {:mvn/version "0.17.0"}
-               com.cemerick/piggieback {:mvn/version "0.2.2"}
-               org.clojure/tools.nrepl {:mvn/version "0.2.12"}}}
+              {com.cemerick/piggieback {:mvn/version "0.2.2"}
+               org.clojure/tools.nrepl {:mvn/version "0.2.12"}
+               org.clojure/tools.trace {:mvn/version "0.7.10"}}}
 
   :dev-rebel {:extra-paths ["aliases/rebel"]
               :extra-deps {com.bhauman/rebel-readline {:mvn/version "0.1.1"}
