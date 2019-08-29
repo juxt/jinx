@@ -1,6 +1,15 @@
-* Tests are here
-file:/home/malcolm/src/JSON-Schema-Test-Suite/tests/draft7/
-
+* DONE Support regex patterns in clj->jsch
+* DONE Schema expansion
+react-jsonschema-form (and potentially other libraries) are not able
+to follow $refs and require pre-expanded schemas. Therefore, add a
+feature to allow expansion.
+* TODO Change order of validation in api-2 so we can use partials
+Also, make schema a record
+* TODO Coercions
+Support a map of maps (from, to) lookup
+* TODO Update documention in README.adoc
+* TODO Coercions
+as per https://ajv.js.org/coercion.html
 * DONE 6. Validation Keywords
 ** DONE [#A] 6.1 Validation Keywords for Any Instance Type
 *** DONE 6.1.1 type
