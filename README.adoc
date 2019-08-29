@@ -43,20 +43,40 @@ incompatible changes ahead.
 
 Most core features are working but there is more work yet to do:
 
-* Annotation gathering
 * Improved Error messages
-* The schema-path and data-path values on failures
 * Relative json-pointer
+* Patterns for uri-template and idn-email
 
 This library is tested with the official
 https://github.com/json-schema-org/JSON-Schema-Test-Suite[JSON-Schema-Test-Suite].
 
-Currently, 631 of the 633 official optional and non-optional tests
-pass. Failing tests include support for uri-template and idn-email.
+JSON Schema provides an official test suite, of which jinx passes all
+the non-optional tests, and all but two of the optional tests.
+
+== Usage
+
+=== Require
+
+(require '[juxt.jinx-alpha-2 :as jinx])
+
+=== Create a schema
+
+(jinx/schema {"type" "array" "items" {"type" "string"}})
+
+=== Create a schema (short-hand)
+
+(jinx/clj->jsch ['string])
+
+=== Validate a document
+
+(jinx/validate
+  {}
+  (jinx/schema {"type" "object"}))
 
 == Schemas
 
-A schema is a Clojure map (or boolean) that should be augmented with metadata by calling `juxt.jinx.schema/schema` on the schema data:
+A schema is a Clojure map (or boolean) that should be augmented with
+metadata by calling `juxt.jinx.schema/schema` on the schema data:
 
 [source,clojure]
 ----
