@@ -13,6 +13,7 @@
     [(:require
       [clojure.string :as str]
       [goog.crypt.base64 :as b64]
+      [goog :as goog]
       [juxt.jinx-alpha.patterns :as patterns]
       [juxt.jinx-alpha.regex :as regex]
       [juxt.jinx-alpha.resolve :as resolv])]))
@@ -185,20 +186,29 @@
     (if-let [pred (get type-preds type)]
       (if (pred instance)
         {:type type}
-        ;; TODO: We have an error, but we should first try to coerce -
-        ;; e.g. string->number, number->string
-        {:error
-         {:message (str "Instance of " (pr-str instance) " is not of type " (pr-str type))
-          :instance instance
-          :type type}})
+        (or
+         (when-let [coercions (-> ctx :options :coercions)]
+           (when-let [coercer (get-in
+                               coercions
+                               [#?(:clj (clojure.core/type instance)
+                                   :cljs (goog/typeOf instance))
+                                type])]
+             (when-let [new-instance (coercer instance)]
+               {:type type
+                :instance new-instance})))
+         {:error
+          {:message (str "Instance of " (pr-str instance) " is not of type " (pr-str type))
+           :instance instance
+           :type type
+           }}))
 
       ;; Nil pred
       #?(:clj (throw (IllegalStateException. "Invalid schema detected"))
          :cljs (throw (js/Error. "Invalid schema detected"))))
-      (array? type)
-      (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
+    (array? type)
+    (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
       ;; TODO: Find out _which_ type it matches, and instantiate _that_
-        {:error {:message (str "Value must be of type " (str/join " or " (pr-str type)))}})))
+      {:error {:message (str "Value must be of type " (str/join " or " (pr-str type)))}})))
 
 ;; TODO: Possibly replace :errors with :invalid? such that :invalid?
 ;; is not a boolean but contains the errors.
@@ -377,10 +387,9 @@
           result
           (reduce
            (fn [acc result]
-             (cond-> acc
+             (cond-> (assoc-in acc [:instance (:keyword result)] (:instance result))
                (not (:valid? result))
                (assoc-in [:causes (:keyword result)] (:errors result))))
-
            {:instance instance}
            validations)]
 
@@ -388,7 +397,9 @@
         {:error {:message "Some properties failed to validate against their schemas"
                  :causes causes}}
         ;; Merge annotations
-        {:annotations (assoc annotations :properties (into {} (map (juxt :keyword :annotations) validations)))}))))
+        (merge
+         result
+         {:annotations (assoc annotations :properties (into {} (map (juxt :keyword :annotations) validations)))})))))
 
 (defmethod process-keyword "patternProperties" [k pattern-properties instance annotations ctx]
   (when (object? instance)
@@ -686,7 +697,7 @@
   ;; validation for these keywords."
   (when (string? instance)
     (try
-      {:instant (decode-content content-encoding instance)}
+      {:instance (decode-content content-encoding instance)}
       nil
       (catch #?(:clj Exception
                 :cljs js/Error) e
@@ -708,7 +719,7 @@
       (case content-media-type
         "application/json"
         (try
-          {:instant (read-json-string content)}
+          {:instance (read-json-string content)}
           (catch #?(:clj Exception
                     :cljs js/Error) e
             {:error {:message "Instance is not application/json"}})))
@@ -818,7 +829,7 @@
   ([instance schema]
    (validate instance schema {:resolvers [::resolv/built-in]}))
 
-  ([instance schema options]
+ ([instance schema options]
    (validate*
     instance schema
     {:doc (or (:base-document options) schema)
