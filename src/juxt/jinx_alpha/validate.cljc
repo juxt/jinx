@@ -285,8 +285,8 @@
               (assoc (validate* child-instance items ctx)
                      :index idx))]
         (if (every? :valid? children)
-          ;;(merge instance {:items children})
-          {:items children}
+          {:instance (mapv :instance children)
+           :items children}
           {:error {:message "Not all items are valid"
                    :bad-items (filter :errors children)}}))
 
@@ -303,7 +303,8 @@
                :index idx))]
         (if (every? :valid? children)
           ;;(merge instance {:items children})
-          {:items children}
+          {:instance (mapv :instance children)
+           :items children}
           {:error {:message "Not all items are valid"
                    :bad-items (filter :errors children)}})))))
 
