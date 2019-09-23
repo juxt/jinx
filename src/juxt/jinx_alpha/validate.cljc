@@ -193,9 +193,18 @@
                                [#?(:clj (clojure.core/type instance)
                                    :cljs (goog/typeOf instance))
                                 type])]
-             (when-let [new-instance (coercer instance)]
-               {:type type
-                :instance new-instance})))
+             ;; coercer may throw an exception, e.g. NumberFormatException
+             ;; TODO: handle exception and recover
+             (try
+               (when-let [new-instance (coercer instance)]
+                 {:type type
+                  :instance new-instance})
+               (catch Exception e
+                 {:error
+                  {:message (str "Instance of " (pr-str instance) " is not of type " (pr-str type) " and failed to coerce to one")
+                   :instance instance
+                   :type type
+                   :coercion-exception e}}))))
          {:error
           {:message (str "Instance of " (pr-str instance) " is not of type " (pr-str type))
            :instance instance
