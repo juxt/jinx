@@ -196,7 +196,7 @@
              ;; coercer may throw an exception, e.g. NumberFormatException
              ;; TODO: handle exception and recover
              (try
-               (when-let [new-instance (coercer instance)]
+               (when-some [new-instance (coercer instance)]
                  {:type type
                   :instance new-instance})
                (catch Exception e
