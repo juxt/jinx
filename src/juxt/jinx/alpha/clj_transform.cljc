@@ -1,6 +1,6 @@
 ;; Copyright © 2019, JUXT LTD.
 
-(ns juxt.jinx-alpha.clj-transform)
+(ns juxt.jinx.alpha.clj-transform)
 
 (defn clj->jsch [x]
   (cond

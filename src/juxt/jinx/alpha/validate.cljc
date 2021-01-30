@@ -1,22 +1,22 @@
 ;; Copyright © 2019, JUXT LTD.
 
-(ns juxt.jinx-alpha.validate
+(ns juxt.jinx.alpha.validate
   (:refer-clojure :exclude [number? integer? array? object?])
   #?@
    (:clj
     [(:require
       [cheshire.core :as cheshire]
       [clojure.string :as str]
-      [juxt.jinx-alpha.regex :as regex]
-      [juxt.jinx-alpha.resolve :as resolv])]
+      [juxt.jinx.alpha.regex :as regex]
+      [juxt.jinx.alpha.resolve :as resolv])]
     :cljs
     [(:require
       [clojure.string :as str]
       [goog.crypt.base64 :as b64]
       [goog :as goog]
-      [juxt.jinx-alpha.patterns :as patterns]
-      [juxt.jinx-alpha.regex :as regex]
-      [juxt.jinx-alpha.resolve :as resolv])]))
+      [juxt.jinx.alpha.patterns :as patterns]
+      [juxt.jinx.alpha.regex :as regex]
+      [juxt.jinx.alpha.resolve :as resolv])]))
 
 (defn read-json-string [json-str]
   #?(:clj (cheshire/parse-string json-str)

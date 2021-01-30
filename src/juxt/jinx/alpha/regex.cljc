@@ -1,10 +1,10 @@
 ;; Copyright © 2019, JUXT LTD.
 
-(ns juxt.jinx-alpha.regex
+(ns juxt.jinx.alpha.regex
   (:require
    [clojure.set :as set]
    [clojure.string :as str]
-   [juxt.jinx-alpha.patterns :as patterns]))
+   [juxt.jinx.alpha.patterns :as patterns]))
 
 (def addr-spec patterns/addr-spec)
 (comment

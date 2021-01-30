@@ -2,8 +2,8 @@
 
 (ns juxt.jinx.annotation-test
   (:require
-   [juxt.jinx-alpha.validate :as v]
-   [juxt.jinx-alpha.schema :refer [schema]]
+   [juxt.jinx.alpha.validate :as v]
+   [juxt.jinx.alpha.schema :refer [schema]]
    #?(:clj
       [clojure.test :refer [deftest is testing]]
       :cljs

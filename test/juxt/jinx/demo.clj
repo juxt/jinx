@@ -2,7 +2,7 @@
 
 (ns juxt.jinx.demo
   (:require
-   [juxt.jinx-alpha :as jinx]))
+   [juxt.jinx.alpha :as jinx]))
 
 (comment
   (jinx/validate

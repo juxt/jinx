@@ -1,6 +1,6 @@
 ;; Copyright © 2019, JUXT LTD.
 
-(ns juxt.jinx-alpha.resolve
+(ns juxt.jinx.alpha.resolve
   #?@
    (:clj
     [(:require
@@ -8,7 +8,7 @@
       [clojure.java.io :as io]
       [clojure.string :as str]
       [clojure.walk :refer [postwalk]]
-      [juxt.jinx-alpha.jsonpointer :as jsonpointer]
+      [juxt.jinx.alpha.jsonpointer :as jsonpointer]
       [lambdaisland.uri :as uri])]
     :cljs
     [(:require
@@ -16,9 +16,9 @@
       [cljs-node-io.file :refer [File]]
       [clojure.string :as str]
       [clojure.walk :refer [postwalk]]
-      [juxt.jinx-alpha.jsonpointer :as jsonpointer]
+      [juxt.jinx.alpha.jsonpointer :as jsonpointer]
       [lambdaisland.uri :as uri])
-     (:require-macros [juxt.jinx-alpha.resolve :refer [slurp-resource]])
+     (:require-macros [juxt.jinx.alpha.resolve :refer [slurp-resource]])
      (:import goog.Uri)]))
 
 #?(:clj

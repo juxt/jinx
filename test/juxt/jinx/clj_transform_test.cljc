@@ -2,7 +2,7 @@
 
 (ns juxt.jinx.clj-transform-test
   (:require
-   [juxt.jinx-alpha.clj-transform :refer [clj->jsch]]
+   [juxt.jinx.alpha.clj-transform :refer [clj->jsch]]
    [clojure.test :refer [deftest is]]
    #?(:clj
       [clojure.test :refer [deftest is testing]]

@@ -1,9 +1,9 @@
 (ns juxt.jinx.coercion-test
   #?@(:clj [(:require
-             [juxt.jinx-alpha.validate :as validate]
+             [juxt.jinx.alpha.validate :as validate]
              [clojure.test :refer [deftest is are testing]])]
       :cljs [(:require
-              [juxt.jinx-alpha.validate :as validate]
+              [juxt.jinx.alpha.validate :as validate]
               [cljs.test :refer-macros [deftest is are testing run-tests]])]))
 
 (deftest coercion-test
