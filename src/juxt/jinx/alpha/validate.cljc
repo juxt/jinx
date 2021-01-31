@@ -383,7 +383,10 @@
                results)]
 
           (cond-> recovered-result
-            (:causes recovered-result) (assoc :error "One or more required properties not found in object")))))))
+            (:causes recovered-result)
+            (assoc
+             :error {:message "One or more required properties not found in object"
+                     :required required})))))))
 
 (defmethod process-keyword "properties" [_ properties instance annotations ctx]
   (when (object? instance)
