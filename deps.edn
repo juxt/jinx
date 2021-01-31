@@ -1,3 +1,5 @@
+;; Copyright © 2019, JUXT LTD.
+
 {:paths ["src" "test" "resources"]
  :deps
  {cheshire/cheshire {:mvn/version "5.8.1"}

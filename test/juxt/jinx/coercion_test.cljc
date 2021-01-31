@@ -1,3 +1,5 @@
+;; Copyright © 2019, JUXT LTD.
+
 (ns juxt.jinx.coercion-test
   #?@(:clj [(:require
              [juxt.jinx.alpha.validate :as validate]
