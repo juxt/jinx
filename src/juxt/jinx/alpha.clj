@@ -18,6 +18,6 @@
   ([schema instance options] (validate/validate schema instance options)))
 
 (defn ^:jinx/experimental clj->jsch
-  [clj]
   "Transform a Clojure syntax shorthand into JSON Schema and build it."
+  [clj]
   (schema/schema (transform/clj->jsch clj)))
