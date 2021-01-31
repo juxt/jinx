@@ -19,6 +19,9 @@ test-cljs:
 test:
 	make test-clj && make test-cljs
 
+lint:
+	clj-kondo --lint src/juxt --lint test/juxt
+
 watch:
 	find . -regex ".*\\.clj[cs]?" | entr make test
 
