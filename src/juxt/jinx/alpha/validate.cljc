@@ -291,7 +291,7 @@
       (object? items)
       (let [children
             (for [[idx child-instance] (map-indexed vector instance)]
-              (assoc (validate* child-instance items ctx)
+              (assoc (validate* items child-instance ctx)
                      :index idx))]
         (if (every? :valid? children)
           {:instance (mapv :instance children)
@@ -308,7 +308,7 @@
       (let [children
             (for [[idx child-schema child-instance] (map vector (range) (concat items (repeat (get schema "additionalItems"))) instance)]
               (assoc
-               (validate* child-instance child-schema ctx)
+               (validate* child-schema child-instance ctx)
                :index idx))]
         (if (every? :valid? children)
           ;;(merge instance {:items children})
@@ -335,7 +335,7 @@
 (defmethod process-keyword "contains" [k contains instance annotations ctx]
   (when (array? instance)
     ;; Let metadata surface in other keywords
-    (let [results (map #(validate* % contains ctx) instance)]
+    (let [results (map #(validate* contains % ctx) instance)]
       (cond-> {:contains results}
         (not (some :valid? results))
         (assoc :error {:message "Instance is not valid against schema"})))))
@@ -375,7 +375,7 @@
                  (let [kw (get-in result [:error :keyword])
                        prop (get-in schema ["properties" kw])
                        attempt (when prop (when-let [defv (get prop "default")]
-                                            (validate* defv prop ctx)))]
+                                            (validate* prop defv ctx)))]
                    (if (:valid? attempt)
                      (assoc-in acc [:instance kw] (:instance attempt))
                      (update acc :causes (fnil conj []) (:error result)))))
@@ -391,7 +391,7 @@
           (for [[kw child] instance
                 :let [subschema (get properties kw)]
                 :when (some? subschema)
-                :let [validation (validate* child subschema ctx)]]
+                :let [validation (validate* subschema child ctx)]]
             (merge {:keyword kw} validation))
 
           result
@@ -418,7 +418,7 @@
             (for [[propname child-instance] instance
                   [pattern subschema] compiled-pattern-properties
                   :when (re-seq pattern propname)
-                  :let [result (validate* child-instance subschema ctx)]
+                  :let [result (validate* subschema child-instance ctx)]
                   :when (not (:valid? result))]
               result)]
         (when (not-empty children)
@@ -435,7 +435,7 @@
             (for [[propname child-instance] instance
                   :when (not (contains? properties propname))
                   :when (nil? (some #(re-seq % propname) compiled-patterns))
-                  :let [result (validate* child-instance additional-properties ctx)]
+                  :let [result (validate* additional-properties child-instance ctx)]
                   :when (not (:valid? result))]
               result)]
         (when (not-empty children) {:error
@@ -449,7 +449,7 @@
                 :when (contains? instance kw)]
             (cond
               (schema? dvalue)
-              (assoc (validate* instance dvalue ctx) :keyword kw)
+              (assoc (validate* dvalue instance ctx) :keyword kw)
               ;; This is the array case, where we fake a validate*
               ;; return value in order to make the reduce work below.
               ;; TODO: Not ideal, should be re-worked.
@@ -478,14 +478,14 @@
   (when (object? instance)
     (let [children
           (for [propname (keys instance)]
-            (validate* propname property-names ctx))]
+            (validate* property-names propname ctx))]
       (when-not (every? :valid? children)
         {:error "propertyNames"
          :failures (filter (comp not :valid?) children)}))))
 
 (defmethod process-keyword "allOf" [k all-of instance annotations ctx]
   (let [results (for [subschema all-of]
-                  (validate* instance subschema ctx))]
+                  (validate* subschema instance ctx))]
     (let [failures (remove :valid? results)]
       (merge
        (when (not-empty failures)
@@ -496,7 +496,7 @@
 
 (defmethod process-keyword "anyOf" [k any-of instance annotations ctx]
   (let [results (for [[subschema idx] (map vector any-of (range))]
-                  (validate* instance subschema ctx))]
+                  (validate* subschema instance ctx))]
     (cond-> {:annotations (apply merge-annotations annotations (map :annotations (filter :valid? results)))}
       (not (some :valid? results))
       (merge {:error {:message "No schema validates for anyOf validation"}}))))
@@ -505,7 +505,7 @@
   (let [validations
         (doall
          (for [subschema one-of]
-           (validate* instance subschema ctx)))
+           (validate* subschema instance ctx)))
         successes (filter :valid? validations)]
     (cond
       (empty? successes)
@@ -518,14 +518,14 @@
       :else (first successes))))
 
 (defmethod process-keyword "not" [k not instance annotations ctx]
-  (when (:valid? (validate* instance not ctx))
+  (when (:valid? (validate* not instance ctx))
     {:error {:message "Schema should not be valid"}}))
 
 (defmethod process-keyword "if" [_ if instance annotations {:keys [schema] :as ctx}]
-  (if (:valid? (validate* instance if ctx))
+  (if (:valid? (validate* if instance ctx))
     (when-let [then (get schema "then")]
       ;; TODO: validate* returns errors!
-      (let [result (validate* instance then ctx)]
+      (let [result (validate* then instance ctx)]
         (if (:valid? result)
           result
           {:error {:message "then clause does not succeed"
@@ -533,7 +533,7 @@
 
     (when-let [else (get schema "else")]
       ;; TODO: validate* returns errors!
-      (let [result (validate* instance else ctx)]
+      (let [result (validate* else instance ctx)]
         (if (:valid? result)
           result
           {:error {:message "else clause does not succeed"
@@ -736,7 +736,7 @@
       {:error {:message "Unable to decode content"}})))
 
 (defn- validate*
-  [instance schema {:keys [options] :as ctx}]
+  [schema instance {:keys [options] :as ctx}]
 
   (cond
     (boolean? schema)
@@ -749,7 +749,7 @@
     (cond
       (contains? schema "$ref")
       (let [[new-schema new-ctx] (resolv/resolve-ref schema (:doc ctx) ctx)
-            res (validate* instance new-schema new-ctx)
+            res (validate* new-schema instance new-ctx)
             causes (:errors res)]
         (cond-> res
           causes
@@ -830,17 +830,15 @@
               res)))))))
 
 (defn validate
-  "Instance should come first do support the Clojure thread-first
-  macro. Instances are the objects here, schemas are the
-  incidentals. Options can contain an optional :base-document which
-  will be used when resolving $ref references, otherwise the schema
-  document is used as the base document. Resolvers can be overridden
-  by specifying :resolvers in the options."
-  ([instance schema]
-   (validate instance schema {:resolvers [::resolv/built-in]}))
+  "Options can contain an optional :base-document which will be used when
+  resolving $ref references, otherwise the schema document is used as the base
+  document. Resolvers can be overridden by specifying :resolvers in the
+  options."
+  ([schema instance]
+   (validate schema instance {:resolvers [::resolv/built-in]}))
 
- ([instance schema options]
+ ([schema instance options]
    (validate*
-    instance schema
+    schema instance
     {:doc (or (:base-document options) schema)
      :options (merge {:resolvers [::resolv/built-in]} (dissoc options :base-document))})))

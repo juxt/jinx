@@ -14,8 +14,8 @@
 
 (defn validate
   "Validate a map (or boolean) according to the given schema."
-  ([instance schema] (validate/validate instance schema))
-  ([instance schema options] (validate/validate instance schema options)))
+  ([schema instance] (validate/validate schema instance))
+  ([schema instance options] (validate/validate schema instance options)))
 
 (defn ^:jinx/experimental clj->jsch
   [clj]

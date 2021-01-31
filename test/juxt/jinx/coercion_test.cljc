@@ -12,8 +12,8 @@
          123
          (:instance
           (validate/validate
-           "123"
            {"type" "integer"}
+           "123"
            {:coercions {#?(:clj String :cljs "string")
                         {"integer" (fn [x] (#?(:clj Integer/parseInt :cljs js/parseInt) x))}}}))))
 
@@ -21,8 +21,8 @@
     (is (= {"foo" 123}
            (:instance
             (validate/validate
-             {"foo" "123"}
              {"properties" {"foo" {"type" "integer"}}}
+             {"foo" "123"}
              {:coercions {#?(:clj String :cljs "string")
                           {"integer" (fn [x]
                                        (#?(:clj Integer/parseInt :cljs js/parseInt) x))}}})))))
@@ -32,9 +32,9 @@
      (= {"foo" [123]}
         (:instance
          (validate/validate
-          {"foo" "123"}
           {"properties" {"foo" {"type" "array"
                                 "items" {"type" "integer"}}}}
+          {"foo" "123"}
           {:coercions {#?(:clj String :cljs "string")
                        {"array" vector
                         "integer" (fn [x]
@@ -45,9 +45,9 @@
      (= {"foo" [123 456]}
         (:instance
          (validate/validate
-          {"foo" ["123" "456"]}
           {"properties" {"foo" {"type" "array"
                                 "items" {"type" "integer"}}}}
+          {"foo" ["123" "456"]}
           {:coercions {#?(:clj String :cljs "string")
                        {"integer" (fn [x]
                                     (#?(:clj Integer/parseInt :cljs js/parseInt) x))}}}))))))

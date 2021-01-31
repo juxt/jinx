@@ -60,7 +60,7 @@
   (try
     (let [schema (schema/schema schema)
           result (validate
-                  data schema
+                  schema data
                   {:resolvers
                    [::resolv/built-in
                     [::resolv/default-resolver

@@ -17,8 +17,10 @@
      :annotations {"default" "Bob"}
      :type "string"
      :valid? true}
-    (v/validate "Malcolm" {"type" "string"
-                           "default" "Bob"})))
+    (v/validate
+     {"type" "string"
+      "default" "Bob"}
+     "Malcolm" )))
   (is
    (=
     {:instance {"surname" "Sparks"
@@ -34,7 +36,6 @@
      :valid? true}
 
     (v/validate
-     {"surname" "Sparks"}
      (schema
       {"type" "object"
        "title" "person"
@@ -50,12 +51,12 @@
          "examples" ["Smith" "Johnson" "Jones" "Williams"]
          }}
        "required" ["firstname" "surname"]})
+     {"surname" "Sparks"}
      {:journal? false}))))
 
 
 #_(v/validate
- {"surname" "Sparks"}
- (schema
+   (schema
   {"type" "object"
    "required" ["firstname"]
    "properties" {"firstname" {"type" "string" "default" "Dominic"}
@@ -69,11 +70,12 @@
                     "default" "foo"
                     "title" "Family name"
                     }]}}})
+    {"surname" "Sparks"}
+
  {:journal? false})
 
 
 #_(v/validate
- {"surname" "Sparks"}
  (schema
   {"type" "object"
    "required" ["firstname"]
@@ -88,4 +90,5 @@
                     "default" "food"
                     "title" "Family name"
                     }]}}})
+ {"surname" "Sparks"}
  {:journal? false})
