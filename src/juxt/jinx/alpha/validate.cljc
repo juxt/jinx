@@ -140,10 +140,10 @@
 ;; fatal.
 
 (defmethod process-keyword "title" [k title instance annotations ctx]
-  {:annotations (assoc annotations "title" title)})
+  {:jinx/annotations [{:jinx/value title}]})
 
 (defmethod process-keyword "description" [k description instance annotations ctx]
-  {:annotations (assoc annotations "description" description)})
+  {:jinx/annotations [{:jinx/value description}]})
 
 (defmethod process-keyword "default" [k default instance annotations ctx]
   (merge
@@ -185,7 +185,7 @@
     (string? type)
     (if-let [pred (get type-preds type)]
       (if (pred instance)
-        {:type type}
+        {:jinx/type type}
         (or
          (when-let [coercions (-> ctx :options :coercions)]
            (when-let [coercer (get-in
@@ -205,10 +205,10 @@
                    :instance instance
                    :type type
                    :coercion-exception e}}))))
-         {:error
+         {:jinx/error
           {:message (str "Instance of " (pr-str instance) " is not of type " (pr-str type))
            :instance instance
-           :type type
+           :jinx/type type
            }}))
 
       ;; Nil pred
@@ -801,39 +801,21 @@
               "contentEncoding" "contentMediaType"])
 
             ctx (assoc ctx :schema schema)
-            results (reduce
-                     (fn [acc kw]
-                       (let [[k v] (find schema kw)]
-                         (if k
-                           (if-let [result (process-keyword
-                                            kw v
-                                            (:instance acc)
-                                            (:annotations acc)
-                                            ctx)]
-                             (cond-> acc
-                               true (update :journal conj (merge {:keyword kw} result))
-                               (find result :instance) (assoc :instance (:instance result))
-                               (find result :annotations) (assoc :annotations (:annotations result))
-                               (find result :type) (assoc :type (:type result)))
-                             acc)
-                           acc)))
-                     {:journal []
-                      :instance instance
-                      :annotations {}}
-                     (distinct (concat keywords (keys schema))))
+            results (for [kw (distinct (concat keywords (keys schema)))
+                          :let [[k v] (find schema kw)]
+                          :when k]
+                      [k (process-keyword k v instance {} ctx)])]
 
-            errors (keep :error (:journal results))
+        (merge
+         {:jinx/annotations
+          (vec
+           (for [[k v] results
+                 annotation (:jinx/annotations v)]
+             (assoc annotation :jinx/keyword k)))
+          :jinx/type (:jinx/type (some (fn [[k v]] (when (= k "type") v)) results))
+          :jinx/debug {:results results}})
 
-            res
-            (merge
-             {:instance (:instance results)
-              :annotations (:annotations results)
-              :type (:type results)
-              :valid? (empty? errors)}
-             (when (not-empty errors) {:errors (vec errors)})
-             (when (:journal? options) {:journal (vec (:journal results))}))]
-
-        res))))
+        ))))
 
 (defn validate
   "Options can contain an optional :base-document which will be used when
