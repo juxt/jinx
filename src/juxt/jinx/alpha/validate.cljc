@@ -798,39 +798,42 @@
               ;; 7.  Semantic Validation With "format"
               "format"
               ;; 8.  String-Encoding Non-JSON Data
-              "contentEncoding" "contentMediaType"])]
+              "contentEncoding" "contentMediaType"])
 
-        (let [ctx (assoc ctx :schema schema)
-              results (reduce
-                       (fn [acc kw]
-                         (let [[k v] (find schema kw)]
-                           (if k
-                             (if-let [result (process-keyword
-                                              kw v
-                                              (:instance acc)
-                                              (:annotations acc)
-                                              ctx)]
-                               (cond-> acc
-                                 true (update :journal conj (merge {:keyword kw} result))
-                                 (find result :instance) (assoc :instance (:instance result))
-                                 (find result :annotations) (assoc :annotations (:annotations result))
-                                 (find result :type) (assoc :type (:type result)))
-                               acc)
-                             acc)))
-                       {:journal []
-                        :instance instance
-                        :annotations {}}
-                       (distinct (concat keywords (keys schema))))]
-          (let [errors (keep :error (:journal results))]
-            (let [res
-                  (merge
-                   {:instance (:instance results)
-                    :annotations (:annotations results)
-                    :type (:type results)
-                    :valid? (empty? errors)}
-                   (when (not-empty errors) {:errors (vec errors)})
-                   (when (:journal? options) {:journal (vec (:journal results))}))]
-              res)))))))
+            ctx (assoc ctx :schema schema)
+            results (reduce
+                     (fn [acc kw]
+                       (let [[k v] (find schema kw)]
+                         (if k
+                           (if-let [result (process-keyword
+                                            kw v
+                                            (:instance acc)
+                                            (:annotations acc)
+                                            ctx)]
+                             (cond-> acc
+                               true (update :journal conj (merge {:keyword kw} result))
+                               (find result :instance) (assoc :instance (:instance result))
+                               (find result :annotations) (assoc :annotations (:annotations result))
+                               (find result :type) (assoc :type (:type result)))
+                             acc)
+                           acc)))
+                     {:journal []
+                      :instance instance
+                      :annotations {}}
+                     (distinct (concat keywords (keys schema))))
+
+            errors (keep :error (:journal results))
+
+            res
+            (merge
+             {:instance (:instance results)
+              :annotations (:annotations results)
+              :type (:type results)
+              :valid? (empty? errors)}
+             (when (not-empty errors) {:errors (vec errors)})
+             (when (:journal? options) {:journal (vec (:journal results))}))]
+
+        res))))
 
 (defn validate
   "Options can contain an optional :base-document which will be used when
@@ -840,7 +843,7 @@
   ([schema instance]
    (validate schema instance {:resolvers [::resolv/built-in]}))
 
- ([schema instance options]
+  ([schema instance options]
    (validate*
     schema instance
     {:doc (or (:base-document options) schema)
