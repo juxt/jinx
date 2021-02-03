@@ -202,39 +202,6 @@
        aggregate-coercions
        (jinx.api/validate
         (jinx.api/schema
-         {"type" "object"
-          "properties"
-          {"userGroup"
-           {"type" "string"
-            "title" "The user group"
-            "description" "Every user belongs to a user-group"
-            "format" "uri-reference"
-            "juxt/coerce" "uri"
-            "juxt/attribute-key" "pass/user-group"}
-           "email"
-           {"type" "string"
-            "format" "email"}
-           "role"
-           {"type" "string"
-            "format" "uri-reference"
-            "juxt/coerce" "uri"
-            }
-           }})
-        {"userGroup" "owners"
-         "email" "mal@juxt.pro"
-         "role" "foo"
-         "foo" "bar"}))]
-
-  report
-  ;;(merge (::jinx/instance report) (::jinx/coerced-instance report))
-  )
-
-(let [report
-      (visit-report
-       apply-coercions
-       aggregate-coercions
-       (jinx.api/validate
-        (jinx.api/schema
          {"allOf"
           [{"type" "object"
             "properties"
