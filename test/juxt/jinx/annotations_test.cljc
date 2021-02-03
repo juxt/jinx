@@ -69,6 +69,31 @@
 
 (jinx/validate
  (jinx/schema
+  {"type" "string"
+   "format" "email"})
+ "mal"
+ {:jinx/results-by-keyword? false})
+
+(jinx/validate
+ (jinx/schema
+  {"type" "object"
+   "required" ["email" "userGroup"]
+   "properties"
+   {"email"
+    {"type" "string"
+     "format" "email"}
+    "userGroup"
+    {"type" "string"
+     "title" "The user group"
+     "description" "Every user belongs to a user-group"
+     "format" "uri-reference"}}})
+ {"userGroup" "owners"
+  "email" "mal@juxt.pro"}
+ {:jinx/results-by-keyword? false})
+
+
+(jinx/validate
+ (jinx/schema
   {"title" "A identified user"
    "allOf"
    [{"type" "object"
@@ -88,15 +113,14 @@
        "title" "The user group"
        "description" "Every user belongs to a user-group"
        "format" "uri-reference"}}}]})
- {"userGroup" "owners"
-  "email" "mal@juxt.pro"}
+
+ ;; Why isn't this catching out "mal" as it's not an email?
+ {"id" "foo"
+  "userGroup" "owners"
+  "email" "mal"}
+
  {:jinx/results-by-keyword? false})
 
-
-{:coerced-value "10"
- :original-value 10
- :valid? true
- :annotations {"title" "I am a string"}}
 
 
 ;; Let's try adding coercion annotation
