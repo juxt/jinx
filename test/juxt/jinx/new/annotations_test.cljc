@@ -138,81 +138,133 @@
 
 
 ;; This works!
-(let [report (visit-report
-              apply-coercions
+(let [report
+      (visit-report
+       apply-coercions
 
-              (fn [report]
-                (if (seq (::jinx/subschemas report))
-                  (let [coerced-instance
-                        (into {}
-                              (for [subschema (::jinx/subschemas report)
-                                    :let [coerced-instance (::jinx/coerced-instance subschema)]
-                                    :when coerced-instance]
-                                [(::jinx/property subschema) coerced-instance]))]
-                    (update report ::jinx/coerced-instance merge coerced-instance))
-                  report))
+       (fn [report]
+         (if (seq (::jinx/subschemas report))
+           (let [coerced-instance
+                 (into {}
+                       (for [subschema (::jinx/subschemas report)
+                             :let [coerced-instance (::jinx/coerced-instance subschema)]
+                             :when coerced-instance]
+                         [(::jinx/property subschema) coerced-instance]))]
+             (assoc report ::jinx/coerced-instance coerced-instance))
+           report))
 
-              (jinx.api/validate
-               (jinx.api/schema
-                {"type" "object"
-                 "properties"
-                 {"userGroup"
-                  {"type" "string"
-                   "title" "The user group"
-                   "description" "Every user belongs to a user-group"
-                   "format" "uri-reference"
-                   "juxt/coerce" "uri"
-                   "juxt/attribute-key" "pass/user-group"}
-                  "email"
-                  {"type" "string"
-                   "format" "email"}}})
-               {"userGroup" "owners"
-                "email" "mal@juxt.pro"
-                "foo" "bar"}))]
-  (apply conj
-         (::jinx/instance report)
-         (for [subschema (::jinx/subschemas report)
-               :when (::jinx/coerced-instance subschema)]
-           [(::jinx/property subschema) (::jinx/coerced-instance subschema)]))
+       (jinx.api/validate
+        (jinx.api/schema
+         {"type" "object"
+          "properties"
+          {"userGroup"
+           {"type" "string"
+            "title" "The user group"
+            "description" "Every user belongs to a user-group"
+            "format" "uri-reference"
+            "juxt/coerce" "uri"
+            "juxt/attribute-key" "pass/user-group"}
+           "email"
+           {"type" "string"
+            "format" "email"}}})
+        {"userGroup" "owners"
+         "email" "mal@juxt.pro"
+         "foo" "bar"}))]
 
-  report
-  )
+  (merge (::jinx/instance report) (::jinx/coerced-instance report)))
 
-
-(let [report (visit-report
-              apply-coercions
-              identity
-              (jinx.api/validate
-               (jinx.api/schema
-                {"allOf"
-                 [{"type" "object"
-                   "properties"
-                   {"userGroup"
-                    {"type" "string"
-                     "title" "The user group"
-                     "description" "Every user belongs to a user-group"
-                     "format" "uri-reference"
-                     "juxt/coerce" "uri"
-                     "juxt/attribute-key" "pass/user-group"}}}
-                  {"type" "object"
-                   "properties"
-                   {"email"
-                    {"type" "string"
-                     "format" "email"}}}]})
-               {"userGroup" "owners"
-                "email" "mal@juxt.pro"
-                "foo" "bar"}))]
-
-  (apply conj
-         (::jinx/instance report)
-         (for [subschema (::jinx/subschemas report)
-               :when (::jinx/coerced-instance subschema)]
-           [(::jinx/property subschema) (::jinx/coerced-instance subschema)]))
-
-  report
-  )
 
 ;; TODO: Get working with allOf
+
+(defn aggregate-coercions [report]
+  (if (seq (::jinx/subschemas report))
+    (let [coerced-instance
+          (reduce
+           (fn [acc subschema]
+             (if-let [coerced-instance (::jinx/coerced-instance subschema)]
+               (case (::jinx/keyword subschema)
+
+                 "properties"
+                 (assoc acc (::jinx/property subschema) coerced-instance)
+
+                 "allOf"
+                 (merge acc coerced-instance))
+               acc))
+           {}
+           (::jinx/subschemas report))]
+
+      (assoc report ::jinx/coerced-instance coerced-instance))
+    report))
+
+(let [report
+      (visit-report
+       apply-coercions
+       aggregate-coercions
+       (jinx.api/validate
+        (jinx.api/schema
+         {"type" "object"
+          "properties"
+          {"userGroup"
+           {"type" "string"
+            "title" "The user group"
+            "description" "Every user belongs to a user-group"
+            "format" "uri-reference"
+            "juxt/coerce" "uri"
+            "juxt/attribute-key" "pass/user-group"}
+           "email"
+           {"type" "string"
+            "format" "email"}
+           "role"
+           {"type" "string"
+            "format" "uri-reference"
+            "juxt/coerce" "uri"
+            }
+           }})
+        {"userGroup" "owners"
+         "email" "mal@juxt.pro"
+         "role" "foo"
+         "foo" "bar"}))]
+
+  report
+  ;;(merge (::jinx/instance report) (::jinx/coerced-instance report))
+  )
+
+(let [report
+      (visit-report
+       apply-coercions
+       aggregate-coercions
+       (jinx.api/validate
+        (jinx.api/schema
+         {"allOf"
+          [{"type" "object"
+            "properties"
+            {"userGroup"
+             {"type" "string"
+              "title" "The user group"
+              "description" "Every user belongs to a user-group"
+              "format" "uri-reference"
+              "juxt/coerce" "uri"
+              "juxt/attribute-key" "pass/user-group"}
+             "email"
+             {"type" "string"
+              "format" "email"}}}
+           {"type" "object"
+            "properties"
+            {"role"
+             {"type" "string"
+              "format" "uri-reference"
+              "juxt/coerce" "uri"
+              }}}]})
+        {"userGroup" "owners"
+         "email" "mal@juxt.pro"
+         "role" "/admins"
+         "foo" "bar"}))]
+
+  report
+  ;;(merge (::jinx/instance report) (::jinx/coerced-instance report))
+  )
+
+
 ;; TODO: Key mapping
 ;; TODO: Password coercion
 
