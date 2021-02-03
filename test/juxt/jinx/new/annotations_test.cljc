@@ -111,67 +111,12 @@
 
 (defn apply-coercions [report]
   (let [coercion (first ;; We don't support composition of coercions yet!
-                       (filter
-                        #(= (::jinx/keyword %) "juxt/coerce")
-                        (::jinx/annotations report)))]
+                  (filter
+                   #(= (::jinx/keyword %) "juxt/coerce")
+                   (::jinx/annotations report)))]
     (cond-> report
       (= (::coerce-to coercion) "uri")
       (assoc ::jinx/instance (java.net.URI. (::jinx/instance report))))))
-
-(defn visit-report [inner outer report]
-  (outer
-   (let [subschemas (::jinx/subschemas report)]
-     (cond-> report
-       (seq subschemas) (update ::jinx/subschemas (fn [subschemas] (mapv #(visit-report inner outer %) subschemas)))
-       inner (inner)))))
-
-((comp apply-coercions)
- (jinx.api/validate
-  (jinx.api/schema
-   {"type" "string"
-    "title" "The user group"
-    "description" "Every user belongs to a user-group"
-    "format" "uri-reference"
-    "juxt/coerce" "uri"
-    "juxt/attribute-key" "pass/user-group"})
-  "owners"))
-
-
-;; This works!
-(let [report
-      (visit-report
-       apply-coercions
-
-       (fn [report]
-         (if (seq (::jinx/subschemas report))
-           (let [instance
-                 (into {}
-                       (for [subschema (::jinx/subschemas report)
-                             :let [instance (::jinx/instance subschema)]
-                             :when instance]
-                         [(::jinx/property subschema) instance]))]
-             (assoc report ::jinx/instance instance))
-           report))
-
-       (jinx.api/validate
-        (jinx.api/schema
-         {"type" "object"
-          "properties"
-          {"userGroup"
-           {"type" "string"
-            "title" "The user group"
-            "description" "Every user belongs to a user-group"
-            "format" "uri-reference"
-            "juxt/coerce" "uri"
-            "juxt/attribute-key" "pass/user-group"}
-           "email"
-           {"type" "string"
-            "format" "email"}}})
-        {"userGroup" "owners"
-         "email" "mal@juxt.pro"
-         "foo" "bar"}))])
-
-;; TODO: Get working with allOf
 
 (defn aggregate-coercions [report]
   (if (seq (::jinx/subschemas report))
@@ -192,6 +137,13 @@
 
       (assoc report ::jinx/instance instance))
     report))
+
+(defn visit-report [inner outer report]
+  (outer
+   (let [subschemas (::jinx/subschemas report)]
+     (cond-> report
+       (seq subschemas) (update ::jinx/subschemas (fn [subschemas] (mapv #(visit-report inner outer %) subschemas)))
+       inner (inner)))))
 
 (let [report
       (visit-report
@@ -224,9 +176,7 @@
          "role" "/admins"
          "foo" "bar"}))]
 
-  report
-  )
-
+  report)
 
 ;; TODO: Key mapping
 ;; TODO: Password coercion
