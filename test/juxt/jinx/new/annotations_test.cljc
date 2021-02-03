@@ -116,7 +116,7 @@
                         (::jinx/annotations report)))]
     (cond-> report
       (= (::coerce-to coercion) "uri")
-      (assoc ::jinx/coerced-instance (java.net.URI. (::jinx/instance report))))))
+      (assoc ::jinx/instance (java.net.URI. (::jinx/instance report))))))
 
 (defn visit-report [inner outer report]
   (outer
@@ -144,13 +144,13 @@
 
        (fn [report]
          (if (seq (::jinx/subschemas report))
-           (let [coerced-instance
+           (let [instance
                  (into {}
                        (for [subschema (::jinx/subschemas report)
-                             :let [coerced-instance (::jinx/coerced-instance subschema)]
-                             :when coerced-instance]
-                         [(::jinx/property subschema) coerced-instance]))]
-             (assoc report ::jinx/coerced-instance coerced-instance))
+                             :let [instance (::jinx/instance subschema)]
+                             :when instance]
+                         [(::jinx/property subschema) instance]))]
+             (assoc report ::jinx/instance instance))
            report))
 
        (jinx.api/validate
@@ -169,31 +169,28 @@
             "format" "email"}}})
         {"userGroup" "owners"
          "email" "mal@juxt.pro"
-         "foo" "bar"}))]
-
-  (merge (::jinx/instance report) (::jinx/coerced-instance report)))
-
+         "foo" "bar"}))])
 
 ;; TODO: Get working with allOf
 
 (defn aggregate-coercions [report]
   (if (seq (::jinx/subschemas report))
-    (let [coerced-instance
+    (let [instance
           (reduce
            (fn [acc subschema]
-             (if-let [coerced-instance (::jinx/coerced-instance subschema)]
+             (if-let [instance (::jinx/instance subschema)]
                (case (::jinx/keyword subschema)
 
                  "properties"
-                 (assoc acc (::jinx/property subschema) coerced-instance)
+                 (assoc acc (::jinx/property subschema) instance)
 
                  "allOf"
-                 (merge acc coerced-instance))
+                 (merge acc instance))
                acc))
            {}
            (::jinx/subschemas report))]
 
-      (assoc report ::jinx/coerced-instance coerced-instance))
+      (assoc report ::jinx/instance instance))
     report))
 
 (let [report
@@ -228,7 +225,6 @@
          "foo" "bar"}))]
 
   report
-  ;;(merge (::jinx/instance report) (::jinx/coerced-instance report))
   )
 
 
