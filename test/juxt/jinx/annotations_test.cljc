@@ -3,6 +3,7 @@
 (ns juxt.jinx.annotations-test
   (:require
    [juxt.jinx.alpha :as jinx]
+   [juxt.jinx.alpha.api :as jinx.api]
    #?(:clj
       [clojure.test :refer [deftest is testing]]
       :cljs
@@ -55,8 +56,8 @@
 
              }}}]
 
-  (jinx/validate
-   (jinx/schema (get-in doc ["components" "schemas" "IdentifiedUser"]))
+  (jinx.api/validate
+   (jinx.api/schema (get-in doc ["components" "schemas" "IdentifiedUser"]))
 
    {"id" "/_crux/pass/users/juxtmal"
     "email" "mal@juxt.pro"
@@ -67,15 +68,15 @@
    ))
 
 
-(jinx/validate
- (jinx/schema
+(jinx.api/validate
+ (jinx.api/schema
   {"type" "string"
    "format" "email"})
  "mal"
  {:jinx/results-by-keyword? false})
 
-(jinx/validate
- (jinx/schema
+(jinx.api/validate
+ (jinx.api/schema
   {"type" "object"
    "required" ["email" "userGroup"]
    "properties"
@@ -89,11 +90,11 @@
      "format" "uri-reference"}}})
  {"userGroup" "owners"
   "email" "mal@juxt.pro"}
- {:jinx/results-by-keyword? false})
+ {::jinx/results-by-keyword? false})
 
 
-(jinx/validate
- (jinx/schema
+(jinx.api/validate
+ (jinx.api/schema
   {"title" "A identified user"
    "allOf"
    [{"type" "object"
@@ -119,7 +120,7 @@
   "userGroup" "owners"
   "email" "mal"}
 
- {:jinx/results-by-keyword? false})
+ {::jinx/results-by-keyword? false})
 
 
 

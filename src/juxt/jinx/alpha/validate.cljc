@@ -7,6 +7,7 @@
     [(:require
       [cheshire.core :as cheshire]
       [clojure.string :as str]
+      [juxt.jinx.alpha :as jinx]
       [juxt.jinx.alpha.regex :as regex]
       [juxt.jinx.alpha.resolve :as resolv])]
     :cljs
@@ -14,6 +15,7 @@
       [clojure.string :as str]
       [goog.crypt.base64 :as b64]
       [goog :as goog]
+      [juxt.jinx.alpha :as jinx]
       [juxt.jinx.alpha.patterns :as patterns]
       [juxt.jinx.alpha.regex :as regex]
       [juxt.jinx.alpha.resolve :as resolv])]))
@@ -112,22 +114,22 @@
 ;; fatal.
 
 (defmethod process-keyword "title" [k title instance ctx]
-  {:jinx/annotations [{:jinx/value title}]})
+  {::jinx/annotations [{::jinx/value title}]})
 
 (defmethod process-keyword "description" [k description instance ctx]
-  {:jinx/annotations [{:jinx/value description}]})
+  {::jinx/annotations [{::jinx/value description}]})
 
 (defmethod process-keyword "default" [k default instance ctx]
-  {:jinx/annotations [{:jinx/value default}]})
+  {::jinx/annotations [{::jinx/value default}]})
 
 (defmethod process-keyword "readOnly" [k read-only instance ctx]
-  {:jinx/annotations [{:jinx/value "readOnly"}]})
+  {::jinx/annotations [{::jinx/value "readOnly"}]})
 
 (defmethod process-keyword "writeOnly" [k write-only instance ctx]
-  {:jinx/annotations [{:jinx/value "writeOnly"}]})
+  {::jinx/annotations [{::jinx/value "writeOnly"}]})
 
 (defmethod process-keyword "examples" [k examples instance ctx]
-  {:jinx/annotations [{:jinx/examples examples}]})
+  {::jinx/annotations [{::jinx/examples examples}]})
 
 ;; TODO: These must check against JavaScript primitive types,
 ;; not Clojure/Java ones
@@ -157,7 +159,7 @@
       (if (pred instance)
         {}
 
-        {:jinx/errors
+        {::jinx/errors
          [{"error" (str "Instance of '" (pr-str instance) "' is not of type " type)}]})
 
       ;; Nil pred
@@ -166,7 +168,7 @@
     (array? type)
     (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
       ;; TODO: Find out _which_ type it matches, and instantiate _that_
-      {:jinx/errors [{"error" (str "Value must be of type " (str/join " or " (pr-str type)))}]})))
+      {::jinx/errors [{"error" (str "Value must be of type " (str/join " or " (pr-str type)))}]})))
 
 ;; TODO: Possibly replace :errors with :invalid? such that :invalid?
 ;; is not a boolean but contains the errors.
@@ -306,11 +308,11 @@
            required)]
 
       (when (not-empty errors)
-        {:jinx/errors errors}))))
+        {::jinx/errors errors}))))
 
 (defmethod process-keyword "properties" [_ properties instance ctx]
   (when (object? instance)
-    {:jinx/subschemas
+    {::jinx/subschemas
      [{"properties"
        (into {}
              (for [[kw child] instance
@@ -392,7 +394,7 @@
          :failures (filter (comp not :valid?) children)}))))
 
 (defmethod process-keyword "allOf" [k all-of instance ctx]
-  {:jinx/subschemas [{"allOf" (mapv #(validate* % instance ctx) all-of)}]})
+  {::jinx/subschemas [{"allOf" (mapv #(validate* % instance ctx) all-of)}]})
 
 #_(defmethod process-keyword "allOf" [k all-of instance annotations ctx]
     (let [results (for [subschema all-of]
@@ -492,7 +494,7 @@
 (defmethod check-format "email" [fmt instance ctx]
   (when (string? instance)
     (when-not (re-matches regex/addr-spec instance)
-      {:jinx/errors [{"error" "Doesn't match email format"}]})))
+      {::jinx/errors [{"error" "Doesn't match email format"}]})))
 
 (defmethod check-format "idn-email" [fmt instance ctx]
   (when (string? instance)
@@ -583,14 +585,14 @@
     (cond
       ;; (This might be cheating just to get past the test suite)
       (re-find #"\\Z" instance)
-      {:jinx/errors [{"error" "Must not contain \\Z anchor from .NET"}]}
+      {::jinx/errors [{"error" "Must not contain \\Z anchor from .NET"}]}
       :else
       (try
         (re-pattern instance)
         nil
         (catch #?(:clj Exception
                   :cljs js/Error) e
-          {:jinx/errors [{"error" "Illegal regex"}]})))))
+          {::jinx/errors [{"error" "Illegal regex"}]})))))
 
 (defmethod process-keyword "format" [_ format instance ctx]
   ;; TODO: This is optional, so should be possible to disable via
@@ -712,7 +714,7 @@
                       [k (process-keyword k v instance ctx)])
 
             errors (for [[k v] results
-                         error (:jinx/errors v)]
+                         error (::jinx/errors v)]
                      (assoc
                       error
                       "keywordLocation"
@@ -722,21 +724,21 @@
                                               "")))
 
             subschemas (for [[k v] results
-                             subschema (:jinx/subschemas v)
+                             subschema (::jinx/subschemas v)
                              :when subschema]
                          subschema)]
 
-        (cond-> {:jinx/instance instance
+        (cond-> {::jinx/instance instance
                  ;; Remove applicators, to avoid duplication with
-                 ;; :jinx/subschemas
-                 :jinx/schema (dissoc schema "properties" "allOf")
-                 :jinx/annotations
+                 ;; ::jinx/subschemas
+                 ::jinx/schema (dissoc schema "properties" "allOf")
+                 ::jinx/annotations
                  (vec (for [[k v] results
-                            annotation (:jinx/annotations v)]
-                        (assoc annotation :jinx/keyword k)))
-                 :jinx/errors (vec errors)
-                 :jinx/subschemas (vec subschemas)}
-          (:jinx/results-by-keyword? options) (assoc :jinx/results-by-keyword (into {} results))
+                            annotation (::jinx/annotations v)]
+                        (assoc annotation ::jinx/keyword k)))
+                 ::jinx/errors (vec errors)
+                 ::jinx/subschemas (vec subschemas)}
+          (::jinx/results-by-keyword? options) (assoc ::jinx/results-by-keyword (into {} results))
           )))))
 
 (defn validate
