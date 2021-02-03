@@ -315,10 +315,16 @@
     (let [subschemas (for [[kw child] instance
                            :let [subschema (get properties kw)]
                            :when (some? subschema)
-                           :let [validation (validate* subschema child ctx)]]
+                           :let [validation (assoc
+                                             (validate* subschema child ctx)
+                                             ::jinx/property kw)]]
                        validation)]
       {::jinx/valid? (every? ::jinx/valid? subschemas)
-       ::jinx/subschemas subschemas})))
+       ::jinx/subschemas (mapv
+                          ;; TODO: This can be automatically added by
+                          ;; the caller, replace convention
+                          #(assoc % ::jinx/keyword "properties")
+                          subschemas)})))
 
 (defmethod process-keyword "patternProperties" [k pattern-properties instance ctx]
   (when (object? instance)
@@ -393,7 +399,9 @@
          :failures (filter (comp not :valid?) children)}))))
 
 (defmethod process-keyword "allOf" [k all-of instance ctx]
-  (let [subschemas (mapv #(validate* % instance ctx) all-of)]
+  (let [subschemas (mapv #(assoc
+                           (validate* % instance ctx)
+                           ::jinx/keyword "allOf") all-of)]
     {::jinx/valid? (every? ::jinx/valid? subschemas)
      ::jinx/subschemas subschemas}))
 
@@ -745,7 +753,8 @@
                         (assoc annotation ::jinx/keyword k)))
 
                  ::jinx/errors (vec errors)
-                 ::jinx/subschemas (vec subschemas)}
+                 ::jinx/subschemas (vec subschemas)
+                 }
 
           (::jinx/results-by-keyword? options) (assoc ::jinx/results-by-keyword (into {} results))
           )))))
