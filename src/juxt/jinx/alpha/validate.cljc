@@ -312,14 +312,13 @@
 
 (defmethod process-keyword "properties" [_ properties instance ctx]
   (when (object? instance)
-    {::jinx/subschemas
-     [{"properties"
-       (into {}
-             (for [[kw child] instance
-                   :let [subschema (get properties kw)]
-                   :when (some? subschema)
-                   :let [validation (validate* subschema child ctx)]]
-               [kw (merge validation)]))}]}))
+    (let [subschemas (for [[kw child] instance
+                           :let [subschema (get properties kw)]
+                           :when (some? subschema)
+                           :let [validation (validate* subschema child ctx)]]
+                       validation)]
+      {::jinx/valid? (every? ::jinx/valid? subschemas)
+       ::jinx/subschemas subschemas})))
 
 (defmethod process-keyword "patternProperties" [k pattern-properties instance ctx]
   (when (object? instance)
@@ -394,7 +393,9 @@
          :failures (filter (comp not :valid?) children)}))))
 
 (defmethod process-keyword "allOf" [k all-of instance ctx]
-  {::jinx/subschemas [{"allOf" (mapv #(validate* % instance ctx) all-of)}]})
+  (let [subschemas (mapv #(validate* % instance ctx) all-of)]
+    {::jinx/valid? (every? ::jinx/valid? subschemas)
+     ::jinx/subschemas subschemas}))
 
 #_(defmethod process-keyword "allOf" [k all-of instance annotations ctx]
     (let [results (for [subschema all-of]
@@ -729,15 +730,23 @@
                          subschema)]
 
         (cond-> {::jinx/instance instance
+
                  ;; Remove applicators, to avoid duplication with
                  ;; ::jinx/subschemas
                  ::jinx/schema (dissoc schema "properties" "allOf")
+
+                 ::jinx/valid? (and
+                                (not (seq errors))
+                                (every? ::jinx/valid? subschemas))
+
                  ::jinx/annotations
                  (vec (for [[k v] results
                             annotation (::jinx/annotations v)]
                         (assoc annotation ::jinx/keyword k)))
+
                  ::jinx/errors (vec errors)
                  ::jinx/subschemas (vec subschemas)}
+
           (::jinx/results-by-keyword? options) (assoc ::jinx/results-by-keyword (into {} results))
           )))))
 

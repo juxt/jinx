@@ -115,10 +115,9 @@
        "description" "Every user belongs to a user-group"
        "format" "uri-reference"}}}]})
 
- ;; Why isn't this catching out "mal" as it's not an email?
  {"id" "foo"
   "userGroup" "owners"
-  "email" "mal"}
+  "email" "mal@juxt.pro"}
 
  {::jinx/results-by-keyword? false})
 
