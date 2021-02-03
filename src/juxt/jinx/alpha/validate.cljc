@@ -123,17 +123,6 @@
   ;; return nil.
   nil)
 
-;; TODO: Actually we need to use find or contains, because we're also
-;; interested in nils
-(defn some-some?
-  "We need a version of some that treats false as a value"
-  [pred coll]
-  (when-let [s (seq coll)]
-    (if-some [i (pred (first s))] i (recur pred (next s)))))
-
-(defn peek-through [ctx kw]
-  (some-some? kw (:acc ctx)))
-
 ;; We test against the instance first. We try to solve (via defaults)
 ;; and build up the instantiation, and possibly explain our actions
 ;; via the journal. If we can't solve, we throw errors. Errors are
@@ -185,31 +174,10 @@
     (string? type)
     (if-let [pred (get type-preds type)]
       (if (pred instance)
-        {:jinx/type type}
-        (or
-         (when-let [coercions (-> ctx :options :coercions)]
-           (when-let [coercer (get-in
-                               coercions
-                               [#?(:clj (clojure.core/type instance)
-                                   :cljs (goog/typeOf instance))
-                                type])]
-             ;; coercer may throw an exception, e.g. NumberFormatException
-             ;; TODO: handle exception and recover
-             (try
-               (when-some [new-instance (coercer instance)]
-                 {:type type
-                  :instance new-instance})
-               (catch Exception e
-                 {:error
-                  {:message (str "Instance of " (pr-str instance) " is not of type " (pr-str type) " and failed to coerce to one")
-                   :instance instance
-                   :type type
-                   :coercion-exception e}}))))
-         {:jinx/error
-          {:message (str "Instance of " (pr-str instance) " is not of type " (pr-str type))
-           :instance instance
-           :jinx/type type
-           }}))
+        {}
+
+        {:jinx/errors
+         [{"error" (str "Instance of '" (pr-str instance) "' is not of type " type)}]})
 
       ;; Nil pred
       #?(:clj (throw (IllegalStateException. "Invalid schema detected"))
@@ -217,7 +185,7 @@
     (array? type)
     (when-not ((apply some-fn (vals (select-keys type-preds type))) instance)
       ;; TODO: Find out _which_ type it matches, and instantiate _that_
-      {:error {:message (str "Value must be of type " (str/join " or " (pr-str type)))}})))
+      {:jinx/errors [{"error" (str "Value must be of type " (str/join " or " (pr-str type)))}]})))
 
 ;; TODO: Possibly replace :errors with :invalid? such that :invalid?
 ;; is not a boolean but contains the errors.
@@ -281,9 +249,6 @@
   (when (string? instance)
     (when-not (re-seq (re-pattern pattern) instance)
       {:error {:message (str "String does not match pattern " pattern)}})))
-
-;; TODO: Show paths in error messages
-;; TODO: Improve error messages, possibly copying Ajv or org.everit json-schema
 
 (defmethod process-keyword "items" [_ items instance annotations {:keys [schema] :as ctx}]
   (when (array? instance)
@@ -352,43 +317,28 @@
 
 (defmethod process-keyword "required" [_ required instance annotations {:keys [schema] :as ctx}]
   (when (object? instance)
-    (let [results
+    (let [errors
           (keep
-           (fn [kw]
-             (when-not (find instance kw)
-               {:error {:message "Required property not in object"
-                        :keyword kw}}))
+           (fn [prop]
+             (when-not (find instance prop)
+               {"error" (str "Required property '" prop "' not found in object")}))
            required)]
 
-      (when (not-empty results)
-        {:error {:message "Some required properties missing"
-                 :causes results}}
-
-        ;; Attempt to recover
-
-        ;; Note: recovery steps should be made optional via options,and
-        ;; possibly possible to override with multimethods.
-
-        (let [recovered-result
-              (reduce
-               (fn [acc result]
-                 (let [kw (get-in result [:error :keyword])
-                       prop (get-in schema ["properties" kw])
-                       attempt (when prop (when-let [defv (get prop "default")]
-                                            (validate* prop defv ctx)))]
-                   (if (:valid? attempt)
-                     (assoc-in acc [:instance kw] (:instance attempt))
-                     (update acc :causes (fnil conj []) (:error result)))))
-               {:instance instance}
-               results)]
-
-          (cond-> recovered-result
-            (:causes recovered-result)
-            (assoc
-             :error {:message "One or more required properties not found in object"
-                     :required required})))))))
+      (when (not-empty errors)
+        {:jinx/errors errors}))))
 
 (defmethod process-keyword "properties" [_ properties instance annotations ctx]
+  (when (object? instance)
+    {:juxt/subschemas
+     [{"properties"
+       (into {}
+             (for [[kw child] instance
+                   :let [subschema (get properties kw)]
+                   :when (some? subschema)
+                   :let [validation (validate* subschema child ctx)]]
+               [kw (merge validation)]))}]}))
+
+#_(defmethod process-keyword "properties" [_ properties instance annotations ctx]
   (when (object? instance)
     (let [validations
           (for [[kw child] instance
@@ -497,6 +447,17 @@
            :causes failures}})
        {:annotations (apply merge-annotations annotations (map :annotations (filter :valid? results)))}))))
 
+#_(defmethod process-keyword "allOf" [k all-of instance annotations ctx]
+  (let [results (for [subschema all-of]
+                  (validate* subschema instance ctx))]
+    (let [failures (remove :valid? results)]
+      (merge
+       (when (not-empty failures)
+         {:error
+          {:message "allOf schema failed due to subschema failing"
+           :causes failures}})
+       {:annotations (apply merge-annotations annotations (map :annotations (filter :valid? results)))}))))
+
 (defmethod process-keyword "anyOf" [k any-of instance annotations ctx]
   (let [results (for [[subschema idx] (map vector any-of (range))]
                   (validate* subschema instance ctx))]
@@ -584,8 +545,7 @@
 (defmethod check-format "email" [fmt instance ctx]
   (when (string? instance)
     (when-not (re-matches regex/addr-spec instance)
-      {:format fmt
-       :error {:message "Doesn't match email format"}})))
+      {:jinx/errors [{"error" "Doesn't match email format"}]})))
 
 (defmethod check-format "idn-email" [fmt instance ctx]
   (when (string? instance)
@@ -676,16 +636,14 @@
     (cond
       ;; (This might be cheating just to get past the test suite)
       (re-find #"\\Z" instance)
-      {:format fmt
-       :error {:message "Must not contain \\Z anchor from .NET"}}
+      {:jinx/errors [{"error" "Must not contain \\Z anchor from .NET"}]}
       :else
       (try
         (re-pattern instance)
         nil
         (catch #?(:clj Exception
                   :cljs js/Error) e
-          {:format fmt
-           :error {:message "Illegal regex"}})))))
+          {:jinx/errors [{"error" "Illegal regex"}]})))))
 
 (defmethod process-keyword "format" [_ format instance annotations ctx]
   ;; TODO: This is optional, so should be possible to disable via
@@ -804,18 +762,36 @@
             results (for [kw (distinct (concat keywords (keys schema)))
                           :let [[k v] (find schema kw)]
                           :when k]
-                      [k (process-keyword k v instance {} ctx)])]
+                      [k (process-keyword k v instance {} ctx)])
 
-        (merge
-         {:jinx/annotations
-          (vec
-           (for [[k v] results
-                 annotation (:jinx/annotations v)]
-             (assoc annotation :jinx/keyword k)))
-          :jinx/type (:jinx/type (some (fn [[k v]] (when (= k "type") v)) results))
-          :jinx/debug {:results results}})
+            errors (for [[k v] results
+                         error (:jinx/errors v)]
+                     (assoc
+                      error
+                      "keywordLocation"
+                      (str "/" ;; TODO: Add schema prefix
+                           k)
+                      "instanceLocation" (str "/" ;; TODO: Add instance prefix
+                                              "")))
 
-        ))))
+            subschemas (for [[k v] results
+                             subschema (:juxt/subschemas v)
+                             :when subschema]
+                         subschema)]
+
+        (cond-> {:jinx/instance instance
+                 ;; Remove applicators, to avoid duplication with
+                 ;; :jinx/subschemas
+                 :jinx/schema (dissoc schema "properties" "allOf")
+                 :jinx/annotations
+                 (vec (for [[k v] results
+                            annotation (:jinx/annotations v)]
+                        (assoc annotation :jinx/keyword k)))
+                 :jinx/valid? (not (seq errors))
+                 :jinx/errors (vec errors)
+                 :jinx/subschemas (vec subschemas)}
+          (:jinx/results-by-keyword? options) (assoc :jinx/results-by-keyword (into {} results))
+          )))))
 
 (defn validate
   "Options can contain an optional :base-document which will be used when

@@ -68,10 +68,29 @@
 
 
 (jinx/validate
- (jinx/schema {"type" "string"
-               "title" "I am a string"
-               "description" "nothing"})
- "10")
+ (jinx/schema
+  {"title" "A identified user"
+   "allOf"
+   [{"type" "object"
+     "required" ["id"]
+     "properties"
+     {"id"
+      {"type" "string"
+       "format" "uri-reference"}}}
+    {"type" "object"
+     "required" ["email" "userGroup"]
+     "properties"
+     {"email"
+      {"type" "string"
+       "format" "email"}
+      "userGroup"
+      {"type" "string"
+       "title" "The user group"
+       "description" "Every user belongs to a user-group"
+       "format" "uri-reference"}}}]})
+ {"userGroup" "owners"
+  "email" "mal@juxt.pro"}
+ {:jinx/results-by-keyword? false})
 
 
 {:coerced-value "10"
@@ -80,10 +99,4 @@
  :annotations {"title" "I am a string"}}
 
 
-{"title" #:jinx{:annotations [#:jinx{:title "I am a string"}]},
- "description" #:jinx{:annotations [#:jinx{:description "nothing"}]},
- "type"
- {:error
-  {:message "Instance of {} is not of type \"string\"",
-   :instance {},
-   :type "string"}}}
+;; Let's try adding coercion annotation
