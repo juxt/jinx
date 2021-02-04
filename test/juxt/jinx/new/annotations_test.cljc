@@ -219,8 +219,6 @@
          {"details" {"type" "object"
                      "properties" {"name" {"type" "string"}
                                    "address" {"type" "string"}
-                                   "pet" {"type" "string"}
-                                   "empno" {"type" "string"}
                                    "webpage" {"type" "string"
                                               "juxt/coerce" "uri"}}}}}]})
 
@@ -228,14 +226,12 @@
       "email" "mal@juxt.pro"
       "role" "/admins"
       "foo" "bar"
-      "details" {"webpage" "https://juxt.pro"}
-      })
+      "details" {"webpage" "https://juxt.pro"}})
+
     (visit-report apply-coercions aggregate-coercions)
-    (visit-report apply-keyword-mappings aggregate-keyword-mappings)
-    )
+    (visit-report apply-keyword-mappings aggregate-keyword-mappings))
 
-
-;; password coercion
+;; Password coercion
 (-> (jinx.api/validate
      (jinx.api/schema
       {"properties"
