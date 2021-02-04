@@ -145,26 +145,22 @@
      (jinx.api/schema
       {"type" "object"
        "required" ["userGroup"]
-       "juxt/keyword-mappings"
-       {"userGroup" "juxt/userGroup"
-        "email" "juxt/email"}
-       "properties"
-       {"userGroup"
-        {"type" "string"
-         "juxt/coerce" "uri"}
-        "email"
-        {"type" "string"
-         "format" "email"}
-        "role"
-        {"type" "string"
-         "juxt/coerce" "uri"} }})
+       "juxt/keyword-mappings" {"userGroup" "juxt/userGroup"
+                                "email" "juxt/email"}
+       "properties" {"userGroup" {"type" "string"
+                                  "juxt/coerce" "uri"}
+                     "email" {"type" "string"
+                              "format" "email"}
+                     "role" {"type" "string"
+                             "juxt/coerce" "uri"} }})
      {"userGroup" "owners"
       "email" "mal@juxt.pro"
       "role" "/admins"
       "foo" "bar"})
     (visit-report apply-coercions aggregate-coercions)
-    ;;(visit-report apply-keyword-mappings identity)
-    )
+    (visit-report apply-keyword-mappings identity))
+
+;; TODO: Have some examples of nested instances!!!
 
 ;; allOf
 (-> (jinx.api/validate
@@ -190,14 +186,13 @@
          {"role"
           {"type" "string"
            "format" "uri-reference"
-           "juxt/coerce" "uri"
-           }}}]})
+           "juxt/coerce" "uri"}}}]})
      {"userGroup" "owners"
       "email" "mal@juxt.pro"
       "role" "/admins"
       "foo" "bar"})
     (visit-report apply-coercions aggregate-coercions)
-    ;;(visit-report apply-keyword-mappings identity #_aggregate-coercions)
+    (visit-report apply-keyword-mappings identity)
     )
 
 ;; TODO: Password coercion
