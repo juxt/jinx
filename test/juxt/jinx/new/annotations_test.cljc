@@ -155,7 +155,7 @@
        inner (inner)))))
 
 ;; properties
-#_(-> (jinx.api/validate
+(-> (jinx.api/validate
      (jinx.api/schema
       {"type" "object"
        "required" ["userGroup"]
@@ -228,6 +228,5 @@
       "details" {"webpage" "https://juxt.pro"}
       })
     (visit-report apply-coercions aggregate-coercions)
-    ;;(visit-report apply-keyword-mappings identity)
     (visit-report apply-keyword-mappings aggregate-keyword-mappings)
     )
