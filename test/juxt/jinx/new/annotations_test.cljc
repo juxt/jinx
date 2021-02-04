@@ -98,6 +98,9 @@
        :juxt/email "mal@juxt.pro"}
       (::jinx/instance report)))))
 
+(defmethod visit/coerce-value "password" [_ instance]
+  (str "XXXXX" instance "XXXXX"))
+
 (deftest password-coercion-test
   (let [report
         (-> (jinx.api/validate

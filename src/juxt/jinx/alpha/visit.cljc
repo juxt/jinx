@@ -36,16 +36,31 @@
 (defmethod process-keyword "juxt/coerce" [keyword value instance ctx]
   {::jinx/annotations [{::coerce-to value}]})
 
+(defmulti coerce-value (fn [coerce-to instance] coerce-to))
+
+(defmethod coerce-value :default [coerce-to instance]
+  (throw
+   (ex-info
+    "No implementation for coerce-value"
+    {::jinx/coerce-to coerce-to
+     ::jinx/instance instance})))
+
+(defmethod coerce-value nil [coerce-to instance]
+  ;; Not all properties are coerced. Return nil indicates no coercion required.
+  nil)
+
+(defmethod coerce-value "uri" [_ instance]
+  (java.net.URI. instance))
+
 (defn apply-coercions [report]
   (let [coercion (first ;; We don't support composition of coercions yet!
                   (filter
                    #(= (::jinx/keyword %) "juxt/coerce")
-                   (::jinx/annotations report)))]
+                   (::jinx/annotations report)))
+        coerced-value (coerce-value (::coerce-to coercion) (::jinx/instance report))]
     (cond-> report
-      (= (::coerce-to coercion) "uri")
-      (assoc ::coerced-value (java.net.URI. (::jinx/instance report)))
-      (= (::coerce-to coercion) "password")
-      (assoc ::coerced-value (str "XXXXX" (::jinx/instance report) "XXXXX")))))
+      (::coerce-to coercion)
+      (assoc ::coerced-value coerced-value))))
 
 (defn aggregate-coercions [report]
   (if (seq (::jinx/subschemas report))
