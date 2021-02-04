@@ -3,6 +3,7 @@
 (ns juxt.jinx.new.annotations-test
   (:require
    [clojure.walk :refer [walk]]
+   [clojure.set :as set]
    [juxt.jinx.alpha :as jinx]
    [juxt.jinx.alpha.validate :refer [process-keyword]]
    [juxt.jinx.alpha.api :as jinx.api]
@@ -69,56 +70,43 @@
 
    ))
 
-
 (defn errors [subschema]
   (concat
    (::jinx/errors subschema)
    (mapcat errors (::jinx/subschemas subschema))))
 
-(jinx.api/validate
- (jinx.api/schema
-  {"type" "string"
-   "format" "email"})
- "mal@juxt.pro"
- {:jinx/results-by-keyword? false})
-
 (defmethod process-keyword "juxt/coerce" [keyword value instance ctx]
   {::jinx/annotations [{::coerce-to value}]})
 
-(defmethod process-keyword "crux/keyword-mappings" [keyword value instance ctx]
+(defmethod process-keyword "juxt/keyword-mappings" [keyword value instance ctx]
   {::jinx/annotations [{::map-to-keywords value}]})
 
+(defn keywordize-keyword-mapping-map [m]
+  (reduce-kv
+   (fn [acc k v]
+     (assoc acc k (keyword v)))
+   {} m))
 
-(jinx.api/validate
- (jinx.api/schema
-  {"type" "object"
-   "required" ["email" "userGroup" "oo"]
-   "crux/keyword-mappings" {"email" "juxt/email"
-                            "userGroup" "juxt/userGroup"}
-   "properties"
-   {"email"
-    {"type" "string"
-     "format" "email"}
-    "userGroup"
-    {"type" "string"
-     "title" "The user group"
-     "description" "Every user belongs to a user-group"
-     "format" "uri-reference"
-     "juxt/coerce" "uri"}}})
- {"userGroup" "owners"
-  "email" "mal@juxt.pro"}
- {::jinx/results-by-keyword? false})
-
-(defn apply-coercions [report]
+(defn apply-annotations [report]
   (let [coercion (first ;; We don't support composition of coercions yet!
                   (filter
                    #(= (::jinx/keyword %) "juxt/coerce")
-                   (::jinx/annotations report)))]
+                   (::jinx/annotations report)))
+        kw-mappings (keywordize-keyword-mapping-map
+                     (apply
+                      merge             ; compose multiple possible annotations
+                      (map ::map-to-keywords
+                           (filter
+                            #(= (::jinx/keyword %) "juxt/keyword-mappings")
+                            (::jinx/annotations report)))))]
     (cond-> report
       (= (::coerce-to coercion) "uri")
-      (assoc ::jinx/instance (java.net.URI. (::jinx/instance report))))))
+      (assoc ::jinx/instance (java.net.URI. (::jinx/instance report)))
 
-(defn aggregate-coercions [report]
+      (seq kw-mappings)
+      (update ::jinx/instance set/rename-keys kw-mappings))))
+
+(defn aggregate-subschemas [report]
   (if (seq (::jinx/subschemas report))
     (let [instance
           (reduce
@@ -147,8 +135,26 @@
 
 (let [report
       (visit-report
-       apply-coercions
-       aggregate-coercions
+       apply-annotations
+       aggregate-subschemas
+       (jinx.api/validate
+        (jinx.api/schema
+         {"type" "object"
+          "required" ["userGroup"]
+          "juxt/keyword-mappings" {"userGroup" "juxt/userGroup"}
+          "properties"
+          {"userGroup"
+           {"type" "string"
+            "juxt/coerce" "uri"}}})
+        {"userGroup" "owners"}))]
+  report)
+
+
+(let [report
+      (visit-report
+       apply-annotations
+       identity
+       ;;aggregate-subschemas
        (jinx.api/validate
         (jinx.api/schema
          {"allOf"
