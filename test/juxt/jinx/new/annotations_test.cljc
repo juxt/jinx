@@ -66,9 +66,7 @@
     "email" "mal@juxt.pro"
     "userGroup" "/_crux/pass/user-groups/owners"}
 
-   {:base-document doc}
-
-   ))
+   {:base-document doc}))
 
 (defn errors [subschema]
   (concat
@@ -131,11 +129,7 @@
                 (::jinx/annotations report)))))]
     (cond-> report
       (seq kw-mappings)
-      (assoc ::remapped-properties
-             (reduce (fn [acc [prop-name kw]]
-                       (assoc acc kw (get (::jinx/instance report) prop-name)))
-                     {}
-                     kw-mappings)))))
+      (assoc ::remapped-properties kw-mappings))))
 
 (defn aggregate-keyword-mappings [report]
   (if (seq (::jinx/subschemas report))
@@ -148,11 +142,9 @@
            (::jinx/subschemas report))]
       ;; TODO: Remove 'old' properties
       (-> report
-          (update ::remapped-properties merge remapped-properties)
-          ;;(update report ::jinx/instance merge remapped-properties)
-          ))
+          ;;(update ::remapped-properties merge remapped-properties)
+          (update ::jinx/instance set/rename-keys remapped-properties)))
     report))
-
 
 (defn visit-report [report inner outer]
   (outer
@@ -162,7 +154,7 @@
        inner (inner)))))
 
 ;; properties
-(-> (jinx.api/validate
+#_(-> (jinx.api/validate
      (jinx.api/schema
       {"type" "object"
        "required" ["userGroup"]
@@ -178,10 +170,12 @@
       "email" "mal@juxt.pro"
       "role" "/admins"
       "foo" "bar"})
+
     (visit-report apply-coercions aggregate-coercions)
-    (visit-report apply-keyword-mappings identity))
+    (visit-report apply-keyword-mappings aggregate-keyword-mappings))
 
 ;; TODO: Have some examples of nested instances!!!
+;; TODO: Password coercion
 
 ;; allOf
 (-> (jinx.api/validate
@@ -211,69 +205,8 @@
       {"userGroup" "owners"
        "email" "mal@juxt.pro"
        "role" "/admins"
+       "foo" "bar"
        })
      (visit-report apply-coercions aggregate-coercions)
      ;;(visit-report apply-keyword-mappings identity)
-     (visit-report apply-keyword-mappings aggregate-keyword-mappings)
-     )
-
-;; TODO: Password coercion
-
-(let [schema (jinx.api/schema
-              {"title" "A identified user"
-               "allOf"
-               [{"type" "object"
-                 "required" ["id"]
-                 "properties"
-                 {"id"
-                  {"type" "string"
-                   "format" "uri-reference"}}}
-                {"type" "object"
-                 "required" ["email" "userGroup"]
-                 "properties"
-                 {"email"
-                  {"type" "string"
-                   "format" "email"}
-                  "userGroup"
-                  {"type" "string"
-                   "title" "The user group"
-                   "description" "Every user belongs to a user-group"
-                   "format" "uri-reference"}}}]})]
-
-  ;; Badly formatted email address
-  (let [instance {"id" "foo"
-                  "userGroup" "owners"
-                  "email" "mal"}]
-
-    (assert (not (::jinx/valid? (jinx.api/validate
-                                 schema
-                                 instance))))
-    (assert (= 1 (-> schema
-                     (jinx.api/validate
-                      instance)
-                     errors
-                     count))))
-
-  ;; Correctly formatted email address
-  (let [instance {"id" "foo"
-                  "userGroup" "owners"
-                  "email" "mal@juxt.pro"}]
-
-    (assert (::jinx/valid? (jinx.api/validate schema instance)))
-
-    (assert (zero? (-> schema
-                       (jinx.api/validate instance)
-                       errors
-                       count))))
-
-  ;; Try to turn userGroup into a java.net.URI.
-  (let [schema (jinx.api/schema
-                {"type" "string"
-                 "title" "The user group"
-                 "description" "Every user belongs to a user-group"
-                 "format" "uri-reference"})]
-
-    (jinx.api/validate schema "/owners"))
-  )
-
-;; Let's try adding coercion annotation
+     (visit-report apply-keyword-mappings aggregate-keyword-mappings))
