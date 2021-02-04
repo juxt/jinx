@@ -110,10 +110,12 @@
 
                      (::coerced-value subschema)
                      (assoc (::jinx/property subschema) (::coerced-value subschema))
-
                      ;; Collect
                      (::coerced-properties subschema)
-                     (merge coerced-properties (::coerced-properties subschema))))
+                     (merge coerced-properties
+                            (if-let [prop (::jinx/property subschema)]
+                              {prop (::coerced-properties subschema)}
+                              (::coerced-properties subschema)))))
 
                  {}
                  (::jinx/subschemas report))]
@@ -210,6 +212,54 @@
          {"role"
           {"type" "string"
            "format" "uri-reference"
+           "juxt/coerce" "uri"}}}]})
+
+     {"userGroup" "owners"
+      "email" "mal@juxt.pro"
+      "role" "/admins"
+      "foo" "bar"})
+
+    (visit-report apply-coercions aggregate-coercions)
+    (visit-report apply-keyword-mappings aggregate-keyword-mappings))
+
+;; Password coercion
+(-> (jinx.api/validate
+     (jinx.api/schema
+      {"properties"
+       {"password"
+        {"type" "string"
+         "juxt/coerce" "password"}}})
+
+     {"password" "RigidSmell"})
+
+    (visit-report apply-coercions aggregate-coercions)
+    (visit-report apply-keyword-mappings aggregate-keyword-mappings))
+
+;; nested
+(-> (jinx.api/validate
+     (jinx.api/schema
+      {"allOf"
+       [
+        {"type" "object"
+         "required" ["userGroup"]
+
+         "properties"
+         {"userGroup"
+          {"type" "string"
+           "title" "The user group"
+           "description" "Every user belongs to a user-group"
+           "format" "uri-reference"
+           "juxt/coerce" "uri"}
+
+          "email"
+          {"type" "string"
+           "format" "email"}}}
+
+        {"type" "object"
+         "properties"
+         {"role"
+          {"type" "string"
+           "format" "uri-reference"
            "juxt/coerce" "uri"}}}
 
 
@@ -229,17 +279,4 @@
       "details" {"webpage" "https://juxt.pro"}})
 
     (visit-report apply-coercions aggregate-coercions)
-    (visit-report apply-keyword-mappings aggregate-keyword-mappings))
-
-;; Password coercion
-(-> (jinx.api/validate
-     (jinx.api/schema
-      {"properties"
-       {"password"
-        {"type" "string"
-         "juxt/coerce" "password"}}})
-
-     {"password" "RigidSmell"})
-
-    (visit-report apply-coercions aggregate-coercions)
-    (visit-report apply-keyword-mappings aggregate-keyword-mappings))
+    )
