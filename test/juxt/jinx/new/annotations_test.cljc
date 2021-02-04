@@ -207,12 +207,25 @@
          {"role"
           {"type" "string"
            "format" "uri-reference"
-           "juxt/coerce" "uri"}}}]})
+           "juxt/coerce" "uri"}}}
+
+
+        ;; Nest object for testing - this doesn't look to be working
+        {"type" "object"
+         "properties"
+         {"details" {"type" "object"
+                     "properties" {"name" {"type" "string"}
+                                   "address" {"type" "string"}
+                                   "pet" {"type" "string"}
+                                   "empno" {"type" "string"}
+                                   "webpage" {"type" "string"
+                                              "juxt/coerce" "uri"}}}}}]})
 
      {"userGroup" "owners"
-      "email" "aon"
+      "email" "mal@juxt.pro"
       "role" "/admins"
       "foo" "bar"
+      "details" {"webpage" "https://juxt.pro"}
       })
     (visit-report apply-coercions aggregate-coercions)
     ;;(visit-report apply-keyword-mappings identity)
