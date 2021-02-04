@@ -2,15 +2,19 @@
 
 (ns juxt.jinx.validate-test
   #?@(:clj [(:require
+             [juxt.jinx.alpha :as jinx]
              [juxt.jinx.alpha.validate :as validate]
              [clojure.test :refer [deftest is are testing]])]
       :cljs [(:require
+              [juxt.jinx.alpha :as jinx]
               [juxt.jinx.alpha.validate :as validate]
               [cljs.test :refer-macros [deftest is are testing run-tests]])]))
 
 (defn run-validate [schema instance]
   (let [result (validate/validate schema instance)]
-    [(:valid? result) (:instance result)]))
+    [(::jinx/valid? result) (::jinx/instance result)]))
+
+(validate/validate true {"foo" "bar"})
 
 (deftest boolean-schema-test []
   (testing "true schema always true"
