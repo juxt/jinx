@@ -73,6 +73,7 @@
    (::jinx/errors subschema)
    (mapcat errors (::jinx/subschemas subschema))))
 ;; => #'juxt.jinx.new.annotations-test/errors
+
 (defmethod process-keyword "juxt/coerce" [keyword value instance ctx]
   {::jinx/annotations [{::coerce-to value}]})
 
@@ -179,34 +180,41 @@
 
 ;; allOf
 (-> (jinx.api/validate
-      (jinx.api/schema
-       {"allOf"
-        [{"type" "object"
-          "required" ["userGroup"]
-          "juxt/keyword-mappings"
-          {"userGroup" "juxt/userGroup"
-           "email" "juxt/email"}
-          "properties"
-          {"userGroup"
-           {"type" "string"
-            ;;           "title" "The user group"
-            ;;           "description" "Every user belongs to a user-group"
-            "format" "uri-reference"
-            "juxt/coerce" "uri"}
-           "email"
-           {"type" "string"
-            "format" "email"}}}
-         {"type" "object"
-          "properties"
-          {"role"
-           {"type" "string"
-            "format" "uri-reference"
-            "juxt/coerce" "uri"}}}]})
-      {"userGroup" "owners"
-       "email" "mal@juxt.pro"
-       "role" "/admins"
-       "foo" "bar"
-       })
-     (visit-report apply-coercions aggregate-coercions)
-     ;;(visit-report apply-keyword-mappings identity)
-     (visit-report apply-keyword-mappings aggregate-keyword-mappings))
+     (jinx.api/schema
+      {"allOf"
+       [
+        {"type" "object"
+         "required" ["userGroup"]
+
+         "juxt/keyword-mappings"
+         {"userGroup" "juxt/userGroup"
+          "email" "juxt/email"}
+
+         "properties"
+         {"userGroup"
+          {"type" "string"
+           "title" "The user group"
+           "description" "Every user belongs to a user-group"
+           "format" "uri-reference"
+           "juxt/coerce" "uri"}
+
+          "email"
+          {"type" "string"
+           "format" "email"}}}
+
+        {"type" "object"
+         "properties"
+         {"role"
+          {"type" "string"
+           "format" "uri-reference"
+           "juxt/coerce" "uri"}}}]})
+
+     {"userGroup" "owners"
+      "email" "aon"
+      "role" "/admins"
+      "foo" "bar"
+      })
+    (visit-report apply-coercions aggregate-coercions)
+    ;;(visit-report apply-keyword-mappings identity)
+    (visit-report apply-keyword-mappings aggregate-keyword-mappings)
+    )
