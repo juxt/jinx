@@ -141,14 +141,18 @@
   (if (seq (::jinx/subschemas report))
     (let [remapped-properties
           (reduce
-             (fn [acc subschema]
-               (prn "rp" (::remapped-properties subschema))
-               (merge acc (::remapped-properties subschema)))
-
-             (::jinx/subschemas report))]
+           (fn [acc subschema]
+             (prn "rp" (::remapped-properties subschema))
+             (merge acc (::remapped-properties subschema)))
+           {}
+           (::jinx/subschemas report))]
+      ;; TODO: Remove 'old' properties
       (-> report
-          (update ::jinx/instance merge remapped-properties)))
+          (update ::remapped-properties merge remapped-properties)
+          ;;(update report ::jinx/instance merge remapped-properties)
+          ))
     report))
+
 
 (defn visit-report [report inner outer]
   (outer
@@ -207,7 +211,7 @@
       {"userGroup" "owners"
        "email" "mal@juxt.pro"
        "role" "/admins"
-       "foo" "bar"})
+       })
      (visit-report apply-coercions aggregate-coercions)
      ;;(visit-report apply-keyword-mappings identity)
      (visit-report apply-keyword-mappings aggregate-keyword-mappings)
