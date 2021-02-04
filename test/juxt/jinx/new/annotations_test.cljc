@@ -146,10 +146,7 @@
              (merge acc (::remapped-properties subschema)))
            {}
            (::jinx/subschemas report))]
-      ;; TODO: Remove 'old' properties
-      (-> report
-          ;;(update ::remapped-properties merge remapped-properties)
-          (update ::jinx/instance set/rename-keys remapped-properties)))
+      (update report ::jinx/instance set/rename-keys remapped-properties))
     report))
 
 (defn visit-report [report inner outer]
@@ -179,9 +176,6 @@
 
     (visit-report apply-coercions aggregate-coercions)
     (visit-report apply-keyword-mappings aggregate-keyword-mappings))
-
-;; TODO: Have some examples of nested instances!!!
-;; TODO: Password coercion
 
 ;; allOf
 (-> (jinx.api/validate
