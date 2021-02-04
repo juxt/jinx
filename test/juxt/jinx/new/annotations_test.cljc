@@ -72,13 +72,15 @@
   (concat
    (::jinx/errors subschema)
    (mapcat errors (::jinx/subschemas subschema))))
-;; => #'juxt.jinx.new.annotations-test/errors
 
 (defmethod process-keyword "juxt/coerce" [keyword value instance ctx]
   {::jinx/annotations [{::coerce-to value}]})
 
 (defmethod process-keyword "juxt/keyword-mappings" [keyword value instance ctx]
   {::jinx/annotations [{::map-to-keywords value}]})
+
+(defmethod process-keyword "juxt/type" [keyword value instance ctx]
+  {::jinx/annotations [{:juxt/type value}]})
 
 (defn keywordize-keyword-mapping-map [m]
   (reduce-kv
@@ -93,7 +95,9 @@
                    (::jinx/annotations report)))]
     (cond-> report
       (= (::coerce-to coercion) "uri")
-      (assoc ::coerced-value (java.net.URI. (::jinx/instance report))))))
+      (assoc ::coerced-value (java.net.URI. (::jinx/instance report)))
+      (= (::coerce-to coercion) "password")
+      (assoc ::coerced-value (str "XXXXX" (::jinx/instance report) "XXXXX")))))
 
 (defn aggregate-coercions [report]
   (if (seq (::jinx/subschemas report))
@@ -137,7 +141,6 @@
     (let [remapped-properties
           (reduce
            (fn [acc subschema]
-             (prn "rp" (::remapped-properties subschema))
              (merge acc (::remapped-properties subschema)))
            {}
            (::jinx/subschemas report))]
@@ -230,3 +233,17 @@
     (visit-report apply-coercions aggregate-coercions)
     (visit-report apply-keyword-mappings aggregate-keyword-mappings)
     )
+
+
+;; password coercion
+(-> (jinx.api/validate
+     (jinx.api/schema
+      {"properties"
+       {"password"
+        {"type" "string"
+         "juxt/coerce" "password"}}})
+
+     {"password" "RigidSmell"})
+
+    (visit-report apply-coercions aggregate-coercions)
+    (visit-report apply-keyword-mappings aggregate-keyword-mappings))
