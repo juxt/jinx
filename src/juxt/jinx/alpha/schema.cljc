@@ -113,30 +113,34 @@
   (when-not (string? v)
     (throw (ex-info "The value of pattern MUST be a string" {:value v}))))
 
-(defmethod validate-keyword "items" [kw v options]
-  (cond
-    (schema? v)
-    (try
-      (validate v options)
-      (catch ExceptionInfo cause
-        (throw (ex-info
-                "The value of 'items' MUST be a valid JSON Schema"
-                {:value v}
-                cause))))
-
-    (array? v)
+(defmethod validate-keyword "prefixItems" [_ v options]
+  (if (array? v)
     (try
       (doseq [el v]
         (try
           (validate el options)
           (catch ExceptionInfo cause
             (throw (ex-info
-                    "The value of 'items' MUST be an array of valid JSON Schemas, but at least one element isn't valid"
+                    "The value of 'prefixItems' MUST be a non-empty array of valid JSON Schemas, but at least one is not valid."
                     {:element el}
                     cause))))))
+    (throw (ex-info
+            "The value of 'prefixItems' MUST be a non-empty array of valid JSON Schemas"
+            {}))))
 
-    :else
-    (throw (ex-info "The value of 'items' MUST be either a valid JSON Schema or an array of valid JSON Schemas" {}))))
+(defmethod validate-keyword "items" [_ v options]
+  (if (schema? v)
+    (try
+      (validate v options)
+      (catch ExceptionInfo cause
+        (throw
+         (ex-info
+          "The value of 'items' MUST be a valid JSON Schema"
+          {:value v}
+          cause))))
+    (throw
+     (ex-info
+      "The value of 'items' MUST be a valid JSON Schema"))))
 
 (defmethod validate-keyword "additionalItems" [kw v options]
   (when-not (schema? v)

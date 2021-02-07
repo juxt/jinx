@@ -228,42 +228,32 @@
            min-length)
       {:error {:message "String is too short"}})))
 
-(defmethod process-keyword "pattern" [_ pattern instance ctx]
+(defmethod process-keyword "pattern" [_ pattern instance _]
   (when (string? instance)
     (when-not (re-seq (re-pattern pattern) instance)
       {:error {:message (str "String does not match pattern " pattern)}})))
 
-(defmethod process-keyword "items" [_ items instance {:keys [schema] :as ctx}]
+(defmethod process-keyword "prefixItems" [_ items instance {:keys [schema] :as ctx}]
   (when (array? instance)
-    (cond
-      (object? items)
-      (let [children
-            (for [[idx child-instance] (map-indexed vector instance)]
-              (assoc (validate* items child-instance ctx)
-                     :index idx))]
-        (if (every? :valid? children)
-          {:instance (mapv :instance children)
-           :items children}
-          {:error {:message "Not all items are valid"
-                   :bad-items (filter :errors children)}}))
+    (let [children
+          (for [[idx child-schema child-instance]
+                (map vector (range) (concat items (repeat (get schema "additionalItems"))) instance)]
+            (-> (validate* child-schema child-instance ctx)
+                (assoc :index idx)))]
+      {::jinx/instance (mapv ::jinx/instance children)
+       ::jinx/valid (every? :valid? children)})))
 
-      (boolean? items)
-      ;; TODO: Add a test for this
-      (when (and (false? items) (not-empty instance))
-        {:error {:message "Items must be empty to satisfy a false schema"}})
-
-      (array? items)
-      (let [children
-            (for [[idx child-schema child-instance] (map vector (range) (concat items (repeat (get schema "additionalItems"))) instance)]
-              (assoc
-               (validate* child-schema child-instance ctx)
-               :index idx))]
-        (if (every? :valid? children)
-          ;;(merge instance {:items children})
-          {:instance (mapv :instance children)
-           :items children}
-          {:error {:message "Not all items are valid"
-                   :bad-items (filter :errors children)}})))))
+(defmethod process-keyword "items" [_ schema instance ctx]
+  (when (array? instance)
+    (let [children
+          (map (fn [idx child-instance]
+                 (->
+                  (validate* schema child-instance ctx)
+                  (assoc ::jinx/index idx)))
+               (range) instance)]
+            {::jinx/instance (mapv ::jinx/instance children)
+             ::jinx/valid? (every? ::jinx/valid? children)
+             ::jinx/subschemas children})))
 
 (defmethod process-keyword "maxItems" [k max-items instance ctx]
   (when (array? instance)
