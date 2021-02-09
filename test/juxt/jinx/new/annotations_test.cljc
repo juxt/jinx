@@ -2,9 +2,10 @@
 
 (ns juxt.jinx.new.annotations-test
   (:require
+   [juxt.jinx.alpha.visit :as jinx.visit]
    [juxt.jinx.alpha :as jinx]
    [juxt.jinx.alpha.api :as jinx.api]
-   [juxt.jinx.alpha.vocabularies.transformation :refer [transform-value process-transformations]]
+   [juxt.jinx.alpha.vocabularies.transformation :refer [transform-value process-transformations] :as t]
    [juxt.jinx.alpha.vocabularies.keyword-mapping :refer [process-keyword-mappings update-instance-with-mappings]]
    #?(:clj
       [clojure.test :refer [deftest is]]
@@ -159,6 +160,25 @@
                  "juxt.jinx.alpha/as" "uri"}})
 
       ["/foo" "/bar"])
+     process-transformations
+     ::jinx/instance))))
+
+(deftest transformation-with-wrapped-array-test
+  (is
+   (=
+    {"userGroups"
+     [(java.net.URI. "a")
+      (java.net.URI. "b")
+      (java.net.URI. "c")]}
+    (->
+     (jinx.api/schema {"properties"
+                       {"userGroups"
+                        {"type" "array"
+                         "items"
+                         {"type" "string"
+                          "format" "string"
+                          "juxt.jinx.alpha/as" "uri"}}}})
+     (jinx.api/validate {"userGroups" ["a" "b" "c"]})
      process-transformations
      ::jinx/instance))))
 
@@ -346,7 +366,6 @@
 
       {"foos" [{"foo" 1 "bar" 1} {"foo" 2 "bar" 2}]})
      process-keyword-mappings
-     ::jinx/instance
-     ))))
+     ::jinx/instance))))
 
 ;; TODO: Check keyword mappings with oneOf schemas

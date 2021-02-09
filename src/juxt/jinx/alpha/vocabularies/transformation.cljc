@@ -49,41 +49,64 @@
 
 (defn aggregate-transformations [report]
   (if (seq (::jinx/subschemas report))
-    (let [report
-          (let [transformed-properties
-                (reduce
-                 (fn [transformed-properties subschema]
+    (let [transformed-values
+          (cond
+            (= (get-in report [::jinx/schema "type"]) "array")
+            (reduce
+             (fn [acc subschema]
 
-                   (cond-> transformed-properties
+               (cond
 
-                     (::transformed-value subschema)
-                     (assoc (or
-                             (::jinx/property subschema)
-                             (::jinx/index subschema))
-                            (::transformed-value subschema))
-                     ;; Collect
-                     (::transformed-properties subschema)
-                     (merge transformed-properties
-                            (cond
-                              (::jinx/property subschema)
-                              {(::jinx/property subschema) (::transformed-properties subschema)}
-                              (::jinx/index subschema)
-                              {(::jinx/index subschema) (::transformed-properties subschema)}
-                              :else
-                              (::transformed-properties subschema)))))
-                 {}
-                 (::jinx/subschemas report))]
+                 (::transformed-value subschema)
+                 (conj acc (::transformed-value subschema))
 
-            (assoc report ::transformed-properties transformed-properties))]
-      (update
-       report
-       ::jinx/instance
-       (fn [instance]
-         (reduce
-          (fn [acc [k v]]
-            (assoc acc k v))
-          instance
-          (::transformed-properties report)))))
+                 ;; Collect
+                 (::transformed-values subschema)
+                 (conj acc (::transformed-values subschema))
+
+                 :else
+                 (conj acc (::jinx/instance subschema))
+                 ))
+             []
+             (::jinx/subschemas report))
+
+            :else
+            (reduce
+             (fn [acc subschema]
+
+               (cond-> acc
+
+                 (::transformed-value subschema)
+                 (assoc (::jinx/property subschema)
+                        (::transformed-value subschema))
+
+                 ;; Collect
+                 (::transformed-values subschema)
+                 (merge acc
+                        (cond
+                          (::jinx/property subschema)
+                          {(::jinx/property subschema) (::transformed-values subschema)}
+
+                          :else
+                          (::transformed-values subschema)))))
+             {}
+             (::jinx/subschemas report)))]
+
+      (cond
+        (= (get-in report [::jinx/schema "type"]) "array")
+        (-> report
+            (assoc
+             ::type :array
+             ::transformed-values transformed-values
+             ::jinx/instance transformed-values))
+
+        :else
+        (-> report
+            (assoc ::type :object
+                   ::transformed-values transformed-values)
+            (update ::jinx/instance
+                    merge transformed-values
+                    ))))
     report))
 
 (defn process-transformations [report]
