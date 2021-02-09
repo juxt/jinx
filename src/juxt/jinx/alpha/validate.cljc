@@ -179,38 +179,38 @@
 
 (defmethod process-keyword "enum" [k enum instance ctx]
   (when-not (contains? (set enum) instance)
-    {:error {:message (str "Value " instance " must be in enum " enum)}}))
+    {::jinx/errors [{:message (str "Value " instance " must be in enum " enum)}]}))
 
 (defmethod process-keyword "const" [k const instance ctx]
   (when-not (= const instance)
-    {:error {:message (str "Value " instance " must be equal to const "  const)}}))
+    {::jinx/errors [{:message (str "Value " instance " must be equal to const "  const)}]}))
 
 (defmethod process-keyword "multipleOf" [k multiple-of instance ctx]
   (when (number? instance)
     (when-not  (= 0
                 #?(:clj (.compareTo (.remainder (bigdec instance) (bigdec multiple-of)) BigDecimal/ZERO)
                    :cljs (if (or (float? instance) (float? multiple-of)) (float-rem instance multiple-of) (rem instance multiple-of))))
-      {:error {:message "Failed multipleOf check"}})))
+      {::jinx/errors [{:message "Failed multipleOf check"}]})))
 
 (defmethod process-keyword "maximum" [k maximum instance ctx]
   (when (number? instance)
     (when-not (<= instance maximum)
-      {:error {:message "Failed maximum check"}})))
+      {::jinx/errors [{:message "Failed maximum check"}]})))
 
 (defmethod process-keyword "exclusiveMaximum" [k exclusive-maximum instance ctx]
   (when (number? instance)
     (when-not (< instance exclusive-maximum)
-      {:error {:message "Failed exclusiveMaximum check"}})))
+      {::jinx/errors [{:message "Failed exclusiveMaximum check"}]})))
 
 (defmethod process-keyword "minimum" [k minimum instance ctx]
   (when (number? instance)
     (when-not (>= instance minimum)
-      {:error {:message "Failed minimum check"}})))
+      {::jinx/errors [{:message "Failed minimum check"}]})))
 
 (defmethod process-keyword "exclusiveMinimum" [k exclusive-minimum instance ctx]
   (when (number? instance)
     (when-not (> instance exclusive-minimum)
-      {:error {:message "Failed exclusiveMinimum check"}})))
+      {::jinx/errors [{:message "Failed exclusiveMinimum check"}]})))
 
 (defmethod process-keyword "maxLength" [k max-length instance ctx]
   (when (string? instance)
@@ -218,7 +218,7 @@
     (when (> #?(:clj (.codePointCount instance 0 (.length instance))
                 :cljs (count (char-seq instance)))
                 max-length)
-      {:error {:message "String is too long"}})))
+      {::jinx/errors [{:message "String is too long"}]})))
 
 (defmethod process-keyword "minLength" [k min-length instance ctx]
   (when (string? instance)
@@ -226,12 +226,12 @@
            #?(:clj (.codePointCount instance 0 (.length instance))
               :cljs (count (char-seq instance)))
            min-length)
-      {:error {:message "String is too short"}})))
+      {::jinx/errors [{:message "String is too short"}]})))
 
 (defmethod process-keyword "pattern" [_ pattern instance _]
   (when (string? instance)
     (when-not (re-seq (re-pattern pattern) instance)
-      {:error {:message (str "String does not match pattern " pattern)}})))
+      {:jinx/errors [{:message (str "String does not match pattern " pattern)}]})))
 
 (defmethod process-keyword "prefixItems" [_ items instance {:keys [schema] :as ctx}]
   (when (array? instance)
@@ -258,17 +258,17 @@
 (defmethod process-keyword "maxItems" [k max-items instance ctx]
   (when (array? instance)
     (when (> (count instance) max-items)
-      {:error {:message "maxItems exceeded"}})))
+      {::jinx/errors [{:message "maxItems exceeded"}]})))
 
 (defmethod process-keyword "minItems" [k min-items instance ctx]
   (when (array? instance)
     (when (< (count instance) min-items)
-      {:error {:message "minItems not reached"}})))
+      {::jinx/errors [{:message "minItems not reached"}]})))
 
 (defmethod process-keyword "uniqueItems" [k unique-items? instance ctx]
   (when (and (array? instance) unique-items?)
     (when-not (apply distinct? instance)
-      {:error {:message "Instance elements are not all unique"}})))
+      {::jinx/errors [{:message "Instance elements are not all unique"}]})))
 
 (defmethod process-keyword "contains" [k contains instance ctx]
   (when (array? instance)
@@ -276,17 +276,17 @@
     (let [results (map #(validate* contains % ctx) instance)]
       (cond-> {:contains results}
         (not (some :valid? results))
-        (assoc :error {:message "Instance is not valid against schema"})))))
+        (assoc ::jinx/errors [{:message "Instance is not valid against schema"}])))))
 
 (defmethod process-keyword "maxProperties" [k max-properties instance ctx]
   (when (object? instance)
     (when-not (<= (count (keys instance)) max-properties)
-      {:error {:message "Max properties exceeded"}})))
+      {::jinx/errors [{:message "Max properties exceeded"}]})))
 
 (defmethod process-keyword "minProperties" [k min-properties instance ctx]
   (when (object? instance)
     (when-not (<= min-properties (count (keys instance)))
-      {:error {:message "Min properties not reached"}})))
+      {::jinx/errors [{:message "Min properties not reached"}]})))
 
 (defmethod process-keyword "required" [_ required instance {:keys [schema] :as ctx}]
   (when (object? instance)
@@ -327,8 +327,8 @@
                   :when (not (:valid? result))]
               result)]
         (when (not-empty children)
-          {:error
-           {:message "Matched pattern property's schema does not succeed"}})))))
+          {::jinx/errors
+           [{:message "Matched pattern property's schema does not succeed"}]})))))
 
 (defmethod process-keyword "additionalProperties" [k additional-properties instance {:keys [schema] :as ctx}]
   (when (object? instance)
@@ -343,9 +343,10 @@
                   :let [result (validate* additional-properties child-instance ctx)]
                   :when (not (:valid? result))]
               result)]
-        (when (not-empty children) {:error
-                                    {:message "An additional property failed the schema check"
-                                     :causes children}})))))
+        (when (not-empty children)
+          {::jinx/error
+           [{:message "An additional property failed the schema check"
+             :causes children}]})))))
 
 (defmethod process-keyword "dependencies" [k dependencies instance ctx]
   (when (object? instance)
@@ -360,9 +361,9 @@
               ;; TODO: Not ideal, should be re-worked.
               (array? dvalue)
               (let [missing (filter #(not (contains? instance %)) dvalue)]
-                (if (not-empty missing)
-                  {:errors [{:message "Not every dependency in instance"
-                             :missing missing}]}))))
+                (when (not-empty missing)
+                  {::jinx/errors [{:message "Not every dependency in instance"
+                                   :missing missing}]}))))
           result (reduce
                   (fn [acc result]
                     (if-let [errors (:errors result)]
@@ -395,17 +396,6 @@
     {::jinx/valid? (every? ::jinx/valid? subschemas)
      ::jinx/subschemas subschemas}))
 
-#_(defmethod process-keyword "allOf" [k all-of instance annotations ctx]
-    (let [results (for [subschema all-of]
-                    (validate* subschema instance ctx))]
-      (let [failures (remove :valid? results)]
-        (merge
-         (when (not-empty failures)
-           {:error
-            {:message "allOf schema failed due to subschema failing"
-             :causes failures}})
-         {:annotations (apply merge-annotations annotations (map :annotations (filter :valid? results)))}))))
-
 (defmethod process-keyword "anyOf" [k any-of instance ctx]
   (let [results (for [[subschema idx] (map vector any-of (range))]
                   (validate* subschema instance ctx))]
@@ -421,35 +411,35 @@
         successes (filter :valid? validations)]
     (cond
       (empty? successes)
-      {:error {:message "No schema succeeds in oneOf validation"
-               :failures validations}}
+      {::jinx/errors [{:message "No schema succeeds in oneOf validation"
+                       :failures validations}]}
       (> (count successes) 1)
-      {:error {:message "Multiple schemas are valid in oneOf validation"
-               :successes successes}}
+      {::jinx/errors [{:message "Multiple schemas are valid in oneOf validation"
+                       :successes successes}]}
 
       :else (first successes))))
 
 (defmethod process-keyword "not" [k not instance ctx]
   (when (:valid? (validate* not instance ctx))
-    {:error {:message "Schema should not be valid"}}))
+    {::jinx/errors [{:message "Schema should not be valid"}]}))
 
 (defmethod process-keyword "if" [_ if instance {:keys [schema] :as ctx}]
-  (if (:valid? (validate* if instance ctx))
+  (if (::jinx/valid? (validate* if instance ctx))
     (when-let [then (get schema "then")]
       ;; TODO: validate* returns errors!
       (let [result (validate* then instance ctx)]
-        (if (:valid? result)
+        (if (::jinx/valid? result)
           result
-          {:error {:message "then clause does not succeed"
-                   :causes (:errors result)}})))
+          {::jinx/errors [{:message "then clause does not succeed"
+                           :causes (:errors result)}]})))
 
     (when-let [else (get schema "else")]
       ;; TODO: validate* returns errors!
       (let [result (validate* else instance ctx)]
-        (if (:valid? result)
+        (if (::jinx/valid? result)
           result
-          {:error {:message "else clause does not succeed"
-                   :causes (:errors result)}})))))
+          {::jinx/errors [{:message "else clause does not succeed"
+                           :causes (:errors result)}]})))))
 
 ;; TODO: Rather than get, use a macro to retrieve either strings and
 ;; keywords, supporting both
@@ -467,8 +457,8 @@
             :cljs (when-not (re-find patterns/iso-date-time instance)
                     (throw (js/Error. "Doesn't match date-time format"))))
          (catch #?(:clj Exception :cljs js/Error) e
-           {:format fmt
-              :error {:message "Doesn't match date-time format"}}))))
+           {::jinx/format fmt
+            ::jinx/errors [{:message "Doesn't match date-time format"}]}))))
 
 (defmethod check-format "date" [fmt instance ctx]
   (when (string? instance)
@@ -477,8 +467,8 @@
             :cljs (when-not (re-matches  patterns/iso-local-date instance)
                     (throw (js/Error. "Doesn't match date format"))))
          (catch #?(:clj Exception :cljs js/Error) e
-           {:format fmt
-            :error {:message "Doesn't match date format"}}))))
+           {::jinx/format fmt
+            ::jinx/errors [{:message "Doesn't match date format"}]}))))
 
 (defmethod check-format "time" [fmt instance ctx]
   (when (string? instance)
@@ -487,8 +477,8 @@
             :cljs (when-not (re-matches patterns/iso-time instance)
                     (throw (js/Error. "Doesn't match time format"))))
          (catch #?(:clj Exception :cljs js/Error) e
-           {:format fmt
-            :error {:message "Doesn't match time format"}}))))
+           {::jinx/format fmt
+            ::jinx/errors [{:message "Doesn't match time format"}]}))))
 
 (defmethod check-format "email" [fmt instance ctx]
   (when (string? instance)
@@ -498,86 +488,86 @@
 (defmethod check-format "idn-email" [fmt instance ctx]
   (when (string? instance)
     (when-not (re-matches regex/iaddr-spec instance)
-      {:format fmt
-       :error {:message "Doesn't match idn-email format"}})))
+      {::jinx/format fmt
+       ::jinx/errors [{:message "Doesn't match idn-email format"}]})))
 
 (defmethod check-format "hostname" [fmt instance ctx]
   (when (string? instance)
     ;; RFC 1034
     (when-not (regex/hostname? instance)
-      {:format fmt
-       :error {:message "Doesn't match hostname format"}})))
+      {::jinx/format fmt
+       ::jinx/errors [{:message "Doesn't match hostname format"}]})))
 
 (defmethod check-format "idn-hostname" [fmt instance ctx]
   (when (string? instance)
     ;; RFC 5890
     (when-not (regex/idn-hostname? instance)
-      {:format fmt
-       :error {:message "Doesn't match idn-hostname format"}})))
+      {::jinx/format fmt
+       ::jinx/errors [{:message "Doesn't match idn-hostname format"}]})))
 
 (defmethod check-format "ipv4" [fmt instance ctx]
   (when (string? instance)
     ;; RFC2673, section 3.2, dotted-quad - also RFC 3986
     (when-not (re-matches regex/IPv4address instance)
-      {:format fmt
-       :error {:message "Doesn't match ipv4 format"}})))
+      {::jinx/format fmt
+       ::jinx/errors [{:message "Doesn't match ipv4 format"}]})))
 
 (defmethod check-format "ipv6" [fmt instance ctx]
   (when (string? instance)
     ;; TODO: Improve this regex: RFC4291
     (when-not (re-matches regex/IPv6address instance)
-      {:format fmt
-       :error {:message "Doesn't match ipv6 format"}})))
+      {::jinx/format fmt
+       ::jinx/errors [{:message "Doesn't match ipv6 format"}]})))
 
 (defmethod check-format "uri" [fmt instance ctx]
   (when (string? instance)
     ;; RFC3986
     (when-not (re-matches regex/URI instance)
-      {:format fmt
-       :error {:message "Doesn't match URI format"}})))
+      {::jinx/format fmt
+       ::jinx/errors [{:message "Doesn't match URI format"}]})))
 
 (defmethod check-format "uri-reference" [fmt instance ctx]
   (when (string? instance)
     ;; TODO: Improve this regex: RFC3986
     (when-not (or (re-matches regex/URI instance)
                   (re-matches regex/relative-ref instance))
-      {:format fmt
-       :error {:message "Doesn't match URI-reference format"}})))
+      {::jinx/format fmt
+       ::jinx/errors [{:message "Doesn't match URI-reference format"}]})))
 
 (defmethod check-format "iri" [fmt instance ctx]
   (when (string? instance)
     ;; RFC3987
     (when-not (re-matches regex/IRI instance)
-      {:format fmt
-       :error {:message "Doesn't match IRI format"}})))
+      {::jinx/format fmt
+       ::jinx/errors [{:message "Doesn't match IRI format"}]})))
 
 (defmethod check-format "iri-reference" [fmt instance ctx]
   (when (string? instance)
     ;; RFC3987
     (when-not (or (re-matches regex/IRI instance)
                   (re-matches regex/irelative-ref instance))
-      {:format fmt
-       :error {:message "Doesn't match IRI-reference format"}})))
+      {::jinx/format fmt
+       ::jinx/errors [{:message "Doesn't match IRI-reference format"}]})))
 
 (defmethod check-format "uri-template" [fmt instance ctx]
   (when (string? instance)
     ;; TODO: Improve this regex: RFC6570
     (when-not (re-matches regex/URI instance)
-      {:format fmt
-       :error {:message "Doesn't match uri-template format"}})))
+      {::jinx/format fmt
+       ::jinx/errore [{:message "Doesn't match uri-template format"}]})))
 
 (defmethod check-format "json-pointer" [fmt instance ctx]
   (when (string? instance)
     ;; RFC6901
     (when-not (re-matches regex/json-pointer instance)
-      {:format fmt
-       :error {:message "Doesn't match json-pointer format"}})))
+      {::jinx/format fmt
+       ::jinx/errors [{:message "Doesn't match json-pointer format"}]})))
 
 (defmethod check-format "relative-json-pointer" [fmt instance ctx]
   (when (string? instance)
     (when-not (re-matches regex/relative-json-pointer instance)
-      {:format fmt
-       :error {:message "Doesn't match relative-json-pointer format"}})))
+      {::jinx/format fmt
+       ::jinx/error [{:message "Doesn't match relative-json-pointer format"}]})))
 
 (defmethod check-format "regex" [fmt instance ctx]
   (when (string? instance)
@@ -620,7 +610,7 @@
       nil
       (catch #?(:clj Exception
                 :cljs js/Error) e
-        {:error {:message "Not base64"}}))))
+        {::jinx/errors [{:message "Not base64"}]}))))
 
 (defmethod process-keyword "contentMediaType" [k content-media-type instance {:keys [schema] :as ctx}]
   ;; TODO: This is optional, so should be possible to disable via
@@ -641,8 +631,8 @@
           {:instance (read-json-string content)}
           (catch #?(:clj Exception
                     :cljs js/Error) e
-            {:error {:message "Instance is not application/json"}})))
-      {:error {:message "Unable to decode content"}})))
+            {::jinx/errors [{:message "Instance is not application/json"}]})))
+      {::jinx/errors [{:message "Unable to decode content"}]})))
 
 (defn- validate*
   [schema instance {:keys [options] :as ctx}]
@@ -651,7 +641,7 @@
     (boolean? schema)
     (cond-> {:instance instance
              :valid? schema}
-      (false? schema) (assoc :errors [{:message "Schema is false"}]))
+      (false? schema) (assoc ::jinx/errors [{:message "Schema is false"}]))
 
     (or (object? schema) (nil? schema))
 
@@ -659,11 +649,10 @@
       (contains? schema "$ref")
       (let [[new-schema new-ctx] (resolv/resolve-ref schema (:doc ctx) ctx)
             res (validate* new-schema instance new-ctx)
-            causes (:errors res)]
+            causes (::jinx/errors res)]
         (cond-> res
           causes
-          (-> (assoc :error {:message "Schema failed following ref" :causes causes})
-              (dissoc :errors))))
+          (-> (assoc ::jinx/errors [{:message "Schema failed following ref" :causes causes}]))))
 
       ;; Start with an ordered list of known of validation keywords,
       ;; this order is from https://github.com/playlyfe/themis.
