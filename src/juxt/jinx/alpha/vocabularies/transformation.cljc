@@ -5,6 +5,7 @@
   #?@
    (:clj
     [(:require
+      [clojure.edn :as edn]
       [clojure.set :as set]
       [juxt.jinx.alpha.visit :as jinx.visit]
       [juxt.jinx.alpha :as jinx]
@@ -12,6 +13,7 @@
       )]
     :cljs
     [(:require
+      [clojure.edn :as edn]
       [clojure.set :as set]
       [juxt.jinx.alpha.visit :as jinx.visit]
       [juxt.jinx.alpha :as jinx]
@@ -36,6 +38,12 @@
 
 (defmethod transform-value "uri" [_ instance]
   (java.net.URI. instance))
+
+(defmethod transform-value "keyword" [_ instance]
+  (keyword instance))
+
+(defmethod transform-value "edn" [_ instance]
+  (edn/read-string instance))
 
 (defn apply-transformations [report]
   (let [as (first ;; We don't support composition of transformations yet!
