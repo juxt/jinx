@@ -84,6 +84,15 @@
 
                (cond-> acc
 
+                 :always
+                 (merge acc
+                        (cond
+                          (::jinx/property subschema)
+                          {(::jinx/property subschema) (::jinx/instance subschema)}
+
+                          :else
+                          (::jinx/instance subschema)))
+
                  (::transformed-value subschema)
                  (assoc (::jinx/property subschema)
                         (::transformed-value subschema))
