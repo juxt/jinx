@@ -651,7 +651,7 @@
             res (validate* new-schema instance new-ctx)
             causes (::jinx/errors res)]
         (cond-> res
-          causes
+          (seq causes)
           (-> (assoc ::jinx/errors [{:message "Schema failed following ref" :causes causes}]))))
 
       ;; Start with an ordered list of known of validation keywords,

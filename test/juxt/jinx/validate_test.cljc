@@ -424,3 +424,12 @@
                                     "bar" {"type" "integer"
                                            "const" 2}}}]}}}
          {"bar" 2})))))
+
+(deftest ref-test
+  (is
+   (empty?
+    (::jinx/errors
+     (validate/validate
+      {"$ref" "#/schemas/A"}
+      {"a" "b"}
+      {:base-document {"schemas" {"A" {"type" "object"}}}})))))
