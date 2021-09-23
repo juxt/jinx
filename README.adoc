@@ -56,23 +56,23 @@ the non-optional tests, and all but two of the optional tests.
 == Usage
 
 === Require
-
+```
 (require '[juxt.jinx-alpha-2 :as jinx])
-
+```
 === Create a schema
-
+```
 (jinx/schema {"type" "array" "items" {"type" "string"}})
-
+```
 === Create a schema (short-hand)
-
+```
 (jinx/clj->jsch ['string])
-
+```
 === Validate a document
-
+```
 (jinx/validate
   {}
   (jinx/schema {"type" "object"}))
-
+```
 == Schemas
 
 A schema is a Clojure map (or boolean) that should be augmented with
