@@ -57,21 +57,33 @@ the non-optional tests, and all but two of the optional tests.
 
 === Require
 
+[source,clojure]
+----
 (require '[juxt.jinx-alpha-2 :as jinx])
+----
 
 === Create a schema
 
+[source,clojure]
+----
 (jinx/schema {"type" "array" "items" {"type" "string"}})
+----
 
 === Create a schema (short-hand)
 
+[source,clojure]
+----
 (jinx/clj->jsch ['string])
+----
 
 === Validate a document
 
+[source,clojure]
+----
 (jinx/validate
   {}
   (jinx/schema {"type" "object"}))
+----
 
 == Schemas
 
