@@ -266,6 +266,21 @@
            "uniqueItems" true}
           [true 10 20 20]))))
 
+(deftest empty-array-unique-items-test
+  (testing "empty arrays validated with uniqueItems work (#24)"
+    (is (= [true []]
+          (run-validate
+            {"type" "array"
+             "uniqueItems" true}
+            [])))
+
+    (is (= [false []]
+          (run-validate
+            {"type" "array"
+             "uniqueItems" true
+             "minItems" 1}
+            [])))))
+
 (deftest object-test
   (is (= [true {}]
          (run-validate
