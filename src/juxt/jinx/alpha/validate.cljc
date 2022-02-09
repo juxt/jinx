@@ -199,7 +199,7 @@
                (when-some [new-instance (coercer instance)]
                  {:type type
                   :instance new-instance})
-               (catch Exception e
+               (catch #?(:clj Exception :cljs js/Error) e
                  {:error
                   {:message (str "Instance of " (pr-str instance) " is not of type " (pr-str type) " and failed to coerce to one")
                    :instance instance
