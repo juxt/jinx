@@ -328,7 +328,7 @@
       {:error {:message "minItems not reached"}})))
 
 (defmethod process-keyword "uniqueItems" [k unique-items? instance annotations ctx]
-  (when (and (array? instance) unique-items?)
+  (when (and (array? instance) (seq instance) unique-items?)
     (when-not (apply distinct? instance)
       {:error {:message "Instance elements are not all unique"}})))
 
