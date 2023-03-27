@@ -32,7 +32,7 @@
     <dependency>
       <groupId>lambdaisland</groupId>
       <artifactId>uri</artifactId>
-      <version>1.1.0</version>
+      <version>1.14.120</version>
     </dependency>
   </dependencies>
   <build>
